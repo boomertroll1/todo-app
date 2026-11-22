@@ -1,16 +1,13 @@
 const SUPABASE_URL = 'https://elmqhmzdklqzmksqosod.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_iA_J8y6ouyj67UJzZPOZfQ_KdqBCjY3';
 
-const PRIORITY_WEIGHT = { high: 0, medium: 1, low: 2 };
-const PRIORITY_LABEL = { high: 'Vysoká', medium: 'Střední', low: 'Nízká' };
-
 const state = {
   user: null,
   activeModule: localStorage.getItem('activeModule') || 'todos',
   activeRanksTab: 'catalog',
   todos: [],
   filter: 'all',
-  sort: 'smart',
+  sort: 'due',
   draftSubtasks: [],
   editSubtasks: [],
 };
@@ -45,7 +42,6 @@ const el = {
 
   todoForm: document.getElementById('todo-form'),
   titleInput: document.getElementById('title-input'),
-  priorityInput: document.getElementById('priority-input'),
   dueInput: document.getElementById('due-input'),
   subtaskDraftInput: document.getElementById('subtask-draft-input'),
   addSubtaskDraftBtn: document.getElementById('add-subtask-draft-btn'),
@@ -61,7 +57,6 @@ const el = {
   editForm: document.getElementById('edit-form'),
   editId: document.getElementById('edit-id'),
   editTitle: document.getElementById('edit-title'),
-  editPriority: document.getElementById('edit-priority'),
   editDue: document.getElementById('edit-due'),
   editSubtaskInput: document.getElementById('edit-subtask-input'),
   editAddSubtaskBtn: document.getElementById('edit-add-subtask-btn'),
@@ -313,23 +308,8 @@ function getVisibleTodos() {
       return Number(a.is_completed) - Number(b.is_completed);
     }
     if (state.sort === 'newest') return b.created_at.localeCompare(a.created_at);
-    if (state.sort === 'due') {
-      const dueA = a.due_date || '9999-12-31';
-      const dueB = b.due_date || '9999-12-31';
-      if (dueA !== dueB) return dueA.localeCompare(dueB);
-      return PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
-    }
 
-    const urgA = getTodoUrgency(a.due_date, a.is_completed).rank;
-    const urgB = getTodoUrgency(b.due_date, b.is_completed).rank;
-    const isUrgentA = urgA <= 5;
-    const isUrgentB = urgB <= 5;
-
-    if (isUrgentA && isUrgentB && urgA !== urgB) return urgA - urgB;
-    if (isUrgentA !== isUrgentB) return isUrgentA ? -1 : 1;
-
-    const pDiff = PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
-    if (pDiff !== 0) return pDiff;
+    // Řazení podle deadlinu (nejbližší / po termínu úplně nahoře, bez termínu až dole)
     const dueA = a.due_date || '9999-12-31';
     const dueB = b.due_date || '9999-12-31';
     if (dueA !== dueB) return dueA.localeCompare(dueB);
@@ -358,6 +338,14 @@ function renderTodos() {
       const urg = getTodoUrgency(todo.due_date, todo.is_completed);
 
       const subs = Array.isArray(todo.subtasks) ? todo.subtasks : [];
+      const subBadge = subs.length
+        ? `<span class="badge badge-date">Podúkoly: ${subs.filter((s) => s.done).length}/${subs.length}</span>`
+        : '';
+      const metaHtml =
+        dueBadge || subBadge
+          ? `<div class="todo-meta">${dueBadge}${subBadge}</div>`
+          : '';
+
       let subtasksHtml = '';
       if (subs.length) {
         const doneCount = subs.filter((s) => s.done).length;
@@ -391,11 +379,7 @@ function renderTodos() {
           <input type="checkbox" class="todo-checkbox" ${todo.is_completed ? 'checked' : ''} aria-label="Označit jako splněné">
           <div class="todo-content">
             <div class="todo-title">${escapeHtml(todo.title)}</div>
-            <div class="todo-meta">
-              <span class="badge badge-${todo.priority}">${PRIORITY_LABEL[todo.priority] || todo.priority}</span>
-              ${dueBadge}
-              ${subs.length ? `<span class="badge badge-date">Podúkoly: ${subs.filter((s) => s.done).length}/${subs.length}</span>` : ''}
-            </div>
+            ${metaHtml}
             ${subtasksHtml}
           </div>
           <div class="todo-actions">
@@ -451,7 +435,7 @@ el.todoForm.addEventListener('submit', async (e) => {
   const payload = {
     user_id: state.user.id,
     title,
-    priority: el.priorityInput.value,
+    priority: 'medium',
     due_date: el.dueInput.value || null,
     subtasks: state.draftSubtasks,
   };
@@ -529,7 +513,6 @@ el.todoList.addEventListener('click', async (e) => {
   if (e.target.classList.contains('edit')) {
     el.editId.value = todo.id;
     el.editTitle.value = todo.title;
-    el.editPriority.value = todo.priority;
     el.editDue.value = todo.due_date || '';
     state.editSubtasks = (todo.subtasks || []).map((s) => ({ ...s }));
     renderEditSubtasks();
@@ -560,7 +543,6 @@ el.editForm.addEventListener('submit', async (e) => {
 
   const updates = {
     title: el.editTitle.value.trim(),
-    priority: el.editPriority.value,
     due_date: el.editDue.value || null,
     subtasks: state.editSubtasks,
   };

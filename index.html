@@ -136,22 +136,17 @@
         </details>
       </section>
 
-      <!-- Jednorázové úkoly s deadlinem (např. Do pátku poslat úkol) -->
+      <!-- Jednorázové úkoly s deadlinem -->
       <form id="todo-form" class="card stack-sm">
         <div class="card-header-row">
           <div>
             <h2>Jednorázové úkoly & Termíny</h2>
-            <span class="muted">Pro konkrétní úkoly typu „Do pátku poslat úkol“ — bez odpracovaných dnů, svítí podle deadlinu</span>
+            <span class="muted">Priorita roste automaticky podle blízkosti deadlinu</span>
           </div>
           <span class="muted mono">10 XP / úkol · Cap 50 XP / d</span>
         </div>
         <input id="title-input" type="text" placeholder="Např. Do pátku poslat úkol z analýzy..." maxlength="200" required autocomplete="off">
         <div class="add-controls">
-          <select id="priority-input" aria-label="Priorita">
-            <option value="high">Vysoká priorita</option>
-            <option value="medium" selected>Střední priorita</option>
-            <option value="low">Nízká priorita</option>
-          </select>
           <input id="due-input" type="date" aria-label="Deadline" title="Do kdy to musí být hotové (čím blíž, tím víc svítí)">
           <button type="submit" class="btn btn-primary">Přidat</button>
         </div>
@@ -173,8 +168,7 @@
         </div>
         <div class="toolbar-right">
           <select id="sort-select" aria-label="Řazení">
-            <option value="smart">Urgence & Priorita</option>
-            <option value="due">Podle deadlinu</option>
+            <option value="due">Podle deadlinu (urgence)</option>
             <option value="newest">Nejnovější</option>
           </select>
           <button id="clear-completed-btn" type="button" class="btn btn-danger-ghost hidden">
@@ -554,7 +548,7 @@
         <section class="card stack-sm">
           <h2>Pravidla XP & Anti-Abuse limity</h2>
           <p class="muted">
-            Systém je nastavený tak, aby nešlo farmit body spamováním úkolů ani přepínáním priorit. Hlavní váhu má každodenní konzistence, reálný čas fokusu a trénink.
+            Systém je nastavený tak, aby nešlo farmit body spamováním úkolů. Hlavní váhu má každodenní konzistence, reálný čas fokusu a trénink.
           </p>
 
           <div class="xp-rules-grid">
@@ -563,7 +557,7 @@
                 <span>✅ Jednorázové úkoly</span>
                 <span class="badge badge-gym mono">Cap 50 XP / den</span>
               </div>
-              <p class="muted"><strong>10 XP</strong> za každý splněný úkol (bez ohledu na prioritu — Vysoká nepřidává nic navíc) a <strong>+2 XP</strong> za podúkol.</p>
+              <p class="muted"><strong>10 XP</strong> za každý splněný úkol a <strong>+2 XP</strong> za podúkol.</p>
             </div>
 
             <div class="xp-rule-card">
@@ -641,20 +635,10 @@
         <span>Název</span>
         <input id="edit-title" type="text" maxlength="200" required>
       </label>
-      <div class="edit-row">
-        <label class="field">
-          <span>Priorita</span>
-          <select id="edit-priority">
-            <option value="high">Vysoká</option>
-            <option value="medium">Střední</option>
-            <option value="low">Nízká</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Deadline</span>
-          <input id="edit-due" type="date">
-        </label>
-      </div>
+      <label class="field">
+        <span>Deadline</span>
+        <input id="edit-due" type="date">
+      </label>
       <div class="stack-sm">
         <span class="field"><span>Podúkoly</span></span>
         <div class="subtask-input-row">
