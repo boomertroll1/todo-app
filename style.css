@@ -1842,3 +1842,190 @@ select:focus {
     text-align: center;
   }
 }
+/* === DENNÍ RUTINY (HABITS) & MILNÍKY UČENÍ === */
+.habits-card {
+  border-color: var(--border-strong);
+  background: linear-gradient(135deg, rgba(17, 24, 39, 0.92), rgba(16, 26, 40, 0.9));
+}
+
+.habits-meta-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.combo-active {
+  background: rgba(250, 204, 21, 0.2) !important;
+  color: #facc15 !important;
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.22);
+}
+
+.habits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.habit-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: rgba(7, 9, 15, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  transition: border-color 0.15s, opacity 0.15s;
+}
+
+.habit-item:hover {
+  border-color: var(--border-strong);
+}
+
+.habit-item.done {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.habit-item.done .habit-name {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.habit-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+
+.habit-icon {
+  font-size: 1.1rem;
+}
+
+.habit-name {
+  font-size: 0.94rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.habit-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.habits-add-grid {
+  display: grid;
+  grid-template-columns: 1.8fr 58px 145px auto;
+  gap: 8px;
+  align-items: center;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
+
+/* Milníky / Roadmapa u Fokus aktivit */
+.skill-milestones {
+  border-top: 1px dashed var(--border);
+  padding-top: 10px;
+}
+
+.ms-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ms-summary::-webkit-details-marker {
+  display: none;
+}
+
+.ms-summary-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ms-mini-track {
+  width: 84px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ms-mini-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
+.ms-body {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ms-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(7, 9, 15, 0.65);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.ms-row.done .ms-text {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.ms-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.86rem;
+  flex: 1;
+}
+
+.ms-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ms-add-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+@media (max-width: 700px) {
+  .habits-add-grid {
+    grid-template-columns: 1fr 56px;
+  }
+  .habits-add-grid select,
+  .habits-add-grid .btn {
+    grid-column: span 1;
+  }
+}

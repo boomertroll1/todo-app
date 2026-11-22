@@ -4,9 +4,9 @@ window.FocusModule = (() => {
   let skills = [];
   let sessions = [];
   let selectedYear = new Date().getFullYear();
+  let openMilestones = new Set();
   let initializedListeners = false;
 
-  // Stav živého časovače (ukládá se do localStorage, takže běží i po přepnutí záložky/obnovení)
   let timerInterval = null;
   let timerState = loadTimerState();
 
@@ -21,7 +21,7 @@ window.FocusModule = (() => {
     return {
       running: false,
       skillId: '',
-      mode: 'stopwatch', // 'stopwatch' | 'countdown'
+      mode: 'stopwatch',
       targetMin: 45,
       startedAt: null,
       accumulatedSec: 0,
@@ -38,7 +38,6 @@ window.FocusModule = (() => {
     el.nextYearBtn = document.getElementById('focus-next-year');
     el.summaryBar = document.getElementById('focus-summary-bar');
 
-    // Časovač
     el.timerSkill = document.getElementById('timer-skill-select');
     el.timerModeBtns = document.querySelectorAll('.timer-mode-chip');
     el.timerPresetRow = document.getElementById('timer-preset-row');
@@ -48,17 +47,14 @@ window.FocusModule = (() => {
     el.timerStopSaveBtn = document.getElementById('timer-stop-save-btn');
     el.timerResetBtn = document.getElementById('timer-reset-btn');
 
-    // Přidání nové aktivity
     el.addSkillForm = document.getElementById('focus-add-skill-form');
     el.skillName = document.getElementById('focus-skill-name');
     el.skillIcon = document.getElementById('focus-skill-icon');
     el.skillColor = document.getElementById('focus-skill-color');
     el.skillGoal = document.getElementById('focus-skill-goal');
 
-    // Karty s heatmapami
     el.skillsList = document.getElementById('focus-skills-list');
 
-    // Dialog pro ruční zápis času
     el.logDialog = document.getElementById('focus-log-dialog');
     el.logForm = document.getElementById('focus-log-form');
     el.logTitle = document.getElementById('focus-log-title');
@@ -140,7 +136,10 @@ window.FocusModule = (() => {
     if (skillsRes.error) window.appShowError(`Chyba aktivit: ${skillsRes.error.message}`);
     if (sessionsRes.error) window.appShowError(`Chyba fokus záznamů: ${sessionsRes.error.message}`);
 
-    skills = skillsRes.data || [];
+    skills = (skillsRes.data || []).map((s) => ({
+      ...s,
+      milestones: Array.isArray(s.milestones) ? s.milestones : [],
+    }));
     sessions = sessionsRes.data || [];
 
     syncTimerSkillOptions();
@@ -182,11 +181,9 @@ window.FocusModule = (() => {
     const dec31 = new Date(year, 11, 31);
     const today = todayStr();
 
-    // Začátek na pondělí týdne, ve kterém je 1. leden
-    const startWeekday = (jan1.getDay() + 6) % 7; // Po=0..Ne=6
+    const startWeekday = (jan1.getDay() + 6) % 7;
     const startDate = new Date(year, 0, 1 - startWeekday);
 
-    // Konec na neděli týdne, ve kterém je 31. prosinec
     const endWeekday = (dec31.getDay() + 6) % 7;
     const endDate = new Date(year, 11, 31 + (6 - endWeekday));
 
@@ -215,7 +212,6 @@ window.FocusModule = (() => {
       weekIdx++;
     }
 
-    // Hlavička měsíců zarovnaná nad sloupce týdnů
     const monthRowHtml = weeks
       .map((_, i) => {
         const foundMonth = Object.entries(monthPositions).find(([, col]) => col === i);
@@ -261,11 +257,58 @@ window.FocusModule = (() => {
     `;
   }
 
+  function buildMilestonesHtml(skill) {
+    const ms = skill.milestones || [];
+    const doneCnt = ms.filter((m) => m.done).length;
+    const pct = ms.length ? Math.round((doneCnt / ms.length) * 100) : 0;
+    const isOpen = openMilestones.has(skill.id);
+
+    const itemsHtml = ms.length
+      ? ms
+          .map(
+            (m, idx) => `
+            <div class="ms-row ${m.done ? 'done' : ''}">
+              <label class="ms-label">
+                <input type="checkbox" class="subtask-check ms-check" data-ms-skill="${skill.id}" data-ms-idx="${idx}" ${m.done ? 'checked' : ''}>
+                <span class="ms-text">${escapeHtml(m.text)}</span>
+              </label>
+              <div class="ms-right">
+                ${m.done && m.done_date ? `<span class="mono muted" style="font-size:0.7rem;">${m.done_date}</span>` : ''}
+                <button type="button" class="icon-btn delete ms-del-btn" data-ms-skill="${skill.id}" data-ms-idx="${idx}" title="Smazat milník">✕</button>
+              </div>
+            </div>
+          `
+          )
+          .join('')
+      : '<p class="muted" style="font-size:0.8rem;">Zatím žádné milníky — přidej si kapitoly nebo cíle (např. Lean 4: Taktiky, Indukce...).</p>';
+
+    return `
+      <details class="skill-milestones" data-ms-details="${skill.id}" ${isOpen ? 'open' : ''}>
+        <summary class="ms-summary">
+          <span class="ms-summary-title">Roadmapa / Milníky (${doneCnt}/${ms.length})</span>
+          <div class="ms-summary-right">
+            ${
+              ms.length
+                ? `<div class="ms-mini-track"><div class="ms-mini-fill" style="width:${pct}%; background:${skill.color};"></div></div><span class="mono" style="font-size:0.74rem; color:${skill.color};">${pct}%</span>`
+                : '<span class="muted" style="font-size:0.76rem;">+50 XP / milník</span>'
+            }
+          </div>
+        </summary>
+        <div class="ms-body">
+          <div class="ms-list">${itemsHtml}</div>
+          <div class="ms-add-row">
+            <input type="text" class="ms-input" data-ms-input="${skill.id}" placeholder="+ Přidat kapitolu / milník (+50 XP, max 2/den)..." maxlength="120">
+            <button type="button" class="btn btn-ghost ms-add-btn" data-ms-add="${skill.id}">+ Přidat</button>
+          </div>
+        </div>
+      </details>
+    `;
+  }
+
   function renderAll() {
     if (!el.skillsList) return;
     if (el.yearLabel) el.yearLabel.textContent = String(selectedYear);
 
-    // Souhrn nahoře
     const today = todayStr();
     const todayTotal = sessions
       .filter((s) => s.session_date === today)
@@ -274,22 +317,25 @@ window.FocusModule = (() => {
       .filter((s) => s.session_date.startsWith(`${selectedYear}-`))
       .reduce((sum, s) => sum + Number(s.minutes), 0);
     const allTimeTotal = sessions.reduce((sum, s) => sum + Number(s.minutes), 0);
+    const totalMilestonesDone = skills.reduce(
+      (sum, sk) => sum + (sk.milestones || []).filter((m) => m.done).length,
+      0
+    );
 
     if (el.summaryBar) {
       el.summaryBar.innerHTML = [
-        `<div class="kpi-card kpi-glow"><span class="kpi-label">Dnes odpracováno</span><span class="kpi-value kpi-accent mono">${formatDuration(todayTotal)}</span><span class="kpi-sub">+${todayTotal} XP dnes</span></div>`,
+        `<div class="kpi-card kpi-glow"><span class="kpi-label">Dnes odpracováno</span><span class="kpi-value kpi-accent mono">${formatDuration(todayTotal)}</span><span class="kpi-sub">1 XP/min do 4h (cap 300 XP/d)</span></div>`,
         `<div class="kpi-card"><span class="kpi-label">Rok ${selectedYear}</span><span class="kpi-value mono">${formatDuration(yearTotal)}</span><span class="kpi-sub">${skills.length} sledovaných aktivit</span></div>`,
-        `<div class="kpi-card"><span class="kpi-label">Celkový Deep Work</span><span class="kpi-value mono">${formatDuration(allTimeTotal)}</span><span class="kpi-sub">Celkem ${allTimeTotal.toLocaleString('cs-CZ')} XP</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">Celkový Deep Work</span><span class="kpi-value mono">${formatDuration(allTimeTotal)}</span><span class="kpi-sub">${totalMilestonesDone} splněných milníků</span></div>`,
       ].join('');
     }
 
     if (!skills.length) {
       el.skillsList.innerHTML =
-        '<p class="empty-state">Zatím nemáš přidanou žádnou aktivitu. Přidej si třeba Kódování, Matematiku nebo Šachy.</p>';
+        '<p class="empty-state">Zatím nemáš přidanou žádnou aktivitu. Přidej si třeba Lean 4, Matematiku, Kódování nebo Šachy.</p>';
       return;
     }
 
-    // Seskupení minut podle skillu a data
     const mapBySkill = {};
     const totalBySkill = {};
     const yearTotalBySkill = {};
@@ -310,7 +356,7 @@ window.FocusModule = (() => {
         const yearMin = yearTotalBySkill[skill.id] || 0;
         const todayMin = dateMap[today] || 0;
         const streak = computeSkillStreak(dateMap);
-        const skillLvl = Math.floor(totalMin / 300) + 1; // +1 Mastery Level každých 5 hodin
+        const skillLvl = Math.floor(totalMin / 300) + 1;
 
         return `
           <article class="card skill-card" style="--skill-color: ${skill.color};">
@@ -338,13 +384,52 @@ window.FocusModule = (() => {
             </div>
 
             ${buildHeatmapHtml(skill, dateMap, selectedYear)}
+            ${buildMilestonesHtml(skill)}
           </article>
         `;
       })
       .join('');
   }
 
-  // --- Logika živého časovače ---
+  async function updateSkillMilestones(skillId, nextMilestones) {
+    const skill = skills.find((s) => s.id === skillId);
+    if (!skill) return;
+    const prev = skill.milestones;
+    skill.milestones = nextMilestones;
+    openMilestones.add(skillId);
+    renderAll();
+
+    const { error } = await db
+      .from('focus_skills')
+      .update({ milestones: nextMilestones })
+      .eq('id', skillId);
+
+    if (error) {
+      skill.milestones = prev;
+      renderAll();
+      window.appShowError(`Chyba milníku: ${error.message}`);
+      return;
+    }
+
+    window.ProgressModule?.refresh();
+  }
+
+  async function addMilestoneFromInput(skillId) {
+    const input = el.skillsList.querySelector(`[data-ms-input="${skillId}"]`);
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    const skill = skills.find((s) => s.id === skillId);
+    if (!skill) return;
+
+    const next = [
+      ...(skill.milestones || []),
+      { id: crypto.randomUUID(), text, done: false, done_date: null },
+    ];
+    await updateSkillMilestones(skillId, next);
+  }
+
+  // --- Živý časovač ---
   function getElapsedSeconds() {
     let sec = timerState.accumulatedSec || 0;
     if (timerState.running && timerState.startedAt) {
@@ -412,7 +497,7 @@ window.FocusModule = (() => {
       return false;
     }
 
-    window.appShowToast(`Zapsáno ${formatDuration(minutes)} (+${Math.round(minutes)} XP).`);
+    window.appShowToast(`Zapsáno ${formatDuration(minutes)} fokusu.`);
     await loadAll();
     window.ProgressModule?.refresh();
     return true;
@@ -442,7 +527,6 @@ window.FocusModule = (() => {
       renderAll();
     });
 
-    // Časovač
     el.timerSkill.addEventListener('change', () => {
       timerState.skillId = el.timerSkill.value;
       saveTimerState();
@@ -513,7 +597,6 @@ window.FocusModule = (() => {
       }
     });
 
-    // Přidání nové aktivity
     el.addSkillForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!user) return;
@@ -527,6 +610,7 @@ window.FocusModule = (() => {
           icon: el.skillIcon.value.trim() || '⚡',
           color: el.skillColor.value || '#00f0ff',
           daily_goal_min: Number(el.skillGoal.value) || 30,
+          milestones: [],
         },
       ]);
 
@@ -540,11 +624,65 @@ window.FocusModule = (() => {
       await loadAll();
     });
 
-    // Kliknutí na karty aktivit (Dnes, čtvereček heatmapy, smazat)
+    // Sledování otevření/zavření sekce Milníky
+    el.skillsList.addEventListener(
+      'toggle',
+      (e) => {
+        const det = e.target;
+        if (det.matches && det.matches('[data-ms-details]')) {
+          const sid = det.dataset.msDetails;
+          if (det.open) openMilestones.add(sid);
+          else openMilestones.delete(sid);
+        }
+      },
+      true
+    );
+
+    el.skillsList.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.classList.contains('ms-input')) {
+        e.preventDefault();
+        addMilestoneFromInput(e.target.dataset.msInput);
+      }
+    });
+
     el.skillsList.addEventListener('click', async (e) => {
+      // Přidání milníku
+      const msAddBtn = e.target.closest('[data-ms-add]');
+      if (msAddBtn) {
+        await addMilestoneFromInput(msAddBtn.dataset.msAdd);
+        return;
+      }
+
+      // Smazání milníku
+      const msDelBtn = e.target.closest('.ms-del-btn');
+      if (msDelBtn) {
+        const sid = msDelBtn.dataset.msSkill;
+        const idx = Number(msDelBtn.dataset.msIdx);
+        const skill = skills.find((s) => s.id === sid);
+        if (!skill) return;
+        const next = skill.milestones.filter((_, i) => i !== idx);
+        await updateSkillMilestones(sid, next);
+        return;
+      }
+
+      // Odškrtnutí milníku
+      if (e.target.classList.contains('ms-check')) {
+        const sid = e.target.dataset.msSkill;
+        const idx = Number(e.target.dataset.msIdx);
+        const skill = skills.find((s) => s.id === sid);
+        if (!skill) return;
+        const checked = e.target.checked;
+        const next = skill.milestones.map((m, i) =>
+          i === idx ? { ...m, done: checked, done_date: checked ? todayStr() : null } : m
+        );
+        await updateSkillMilestones(sid, next);
+        return;
+      }
+
+      // Smazání celé aktivity
       const delBtn = e.target.closest('[data-del-skill]');
       if (delBtn) {
-        if (!confirm('Smazat tuto aktivitu včetně celé její roční historie?')) return;
+        if (!confirm('Smazat tuto aktivitu včetně celé její roční historie a milníků?')) return;
         const { error } = await db.from('focus_skills').delete().eq('id', delBtn.dataset.delSkill);
         if (error) {
           window.appShowError(`Chyba mazání: ${error.message}`);
@@ -568,7 +706,6 @@ window.FocusModule = (() => {
       }
     });
 
-    // Dialog ručního zápisu
     el.logQuickMins.forEach((btn) => {
       btn.addEventListener('click', () => {
         el.logMinutes.value = btn.dataset.quickMin;
@@ -611,6 +748,7 @@ window.FocusModule = (() => {
       user = null;
       skills = [];
       sessions = [];
+      openMilestones.clear();
       stopTimerTick();
     },
   };
