@@ -7,6 +7,7 @@ const PRIORITY_LABEL = { high: 'Vysoká', medium: 'Střední', low: 'Nízká' };
 const state = {
   user: null,
   activeModule: localStorage.getItem('activeModule') || 'todos',
+  activeRanksTab: 'catalog',
   todos: [],
   filter: 'all',
   sort: 'smart',
@@ -37,6 +38,10 @@ const el = {
   moduleWorkouts: document.getElementById('module-workouts'),
   moduleProgress: document.getElementById('module-progress'),
   moduleRanks: document.getElementById('module-ranks'),
+
+  ranksSubtabs: document.querySelectorAll('.ranks-subtab'),
+  ranksPanelCatalog: document.getElementById('ranks-panel-catalog'),
+  ranksPanelXpGuide: document.getElementById('ranks-panel-xp-guide'),
 
   todoForm: document.getElementById('todo-form'),
   titleInput: document.getElementById('title-input'),
@@ -147,6 +152,23 @@ function showView(name) {
   el.appView.classList.toggle('hidden', name !== 'app');
 }
 
+function switchRanksSubtab(tabName) {
+  state.activeRanksTab = tabName;
+  el.ranksSubtabs.forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.ranksTab === tabName);
+  });
+  if (el.ranksPanelCatalog) {
+    el.ranksPanelCatalog.classList.toggle('hidden', tabName !== 'catalog');
+  }
+  if (el.ranksPanelXpGuide) {
+    el.ranksPanelXpGuide.classList.toggle('hidden', tabName !== 'xp-guide');
+  }
+}
+
+el.ranksSubtabs.forEach((btn) => {
+  btn.addEventListener('click', () => switchRanksSubtab(btn.dataset.ranksTab));
+});
+
 function switchModule(moduleName) {
   state.activeModule = moduleName;
   localStorage.setItem('activeModule', moduleName);
@@ -168,7 +190,7 @@ function switchModule(moduleName) {
     gym: 'Tělo & Strava',
     workouts: 'Tréninky & Síla',
     progress: 'Progres & Achievementy',
-    ranks: 'Katalog Ranků',
+    ranks: 'Ranky & XP Systém',
   };
   el.pageTitle.textContent = titles[moduleName] || 'Úkoly';
 
@@ -176,7 +198,10 @@ function switchModule(moduleName) {
   if (moduleName === 'calendar') window.CalendarModule?.onShow();
   if (moduleName === 'workouts') window.WorkoutsModule?.onShow();
   if (moduleName === 'progress') window.ProgressModule?.onShow();
-  if (moduleName === 'ranks') window.ProgressModule?.onShowRanks();
+  if (moduleName === 'ranks') {
+    switchRanksSubtab(state.activeRanksTab);
+    window.ProgressModule?.onShowRanks();
+  }
 }
 
 el.moduleTabs.forEach((tab) => {
@@ -295,7 +320,6 @@ function getVisibleTodos() {
       return PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
     }
 
-    // Smart řazení: cokoliv s deadlinem <= 5 dní automaticky vyletí nahoru podle urgence
     const urgA = getTodoUrgency(a.due_date, a.is_completed).rank;
     const urgB = getTodoUrgency(b.due_date, b.is_completed).rank;
     const isUrgentA = urgA <= 5;

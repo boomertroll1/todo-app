@@ -2133,3 +2133,38 @@ select:focus {
     border-top: 1px dashed rgba(255, 255, 255, 0.06);
   }
 }
+/* === PODZÁLOŽKY V RANCÍCH & PŘEHLED XP PRAVIDEL === */
+.ranks-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.xp-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.xp-rule-card {
+  background: rgba(7, 9, 15, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.xp-rule-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.xp-rule-card strong {
+  color: var(--text);
+}

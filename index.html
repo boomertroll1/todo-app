@@ -89,7 +89,7 @@
       <div id="hud-streak" class="hud-streak mono" title="Aktuální streak a XP multiplikátor">🔥 0d · 1.00×</div>
     </section>
 
-    <!-- Přepínač modulů (7 záložek) -->
+    <!-- Přepínač modulů (7 hlavních záložek) -->
     <nav class="module-tabs" role="tablist">
       <button type="button" class="module-tab active" data-module="todos">Úkoly</button>
       <button type="button" class="module-tab" data-module="focus">Fokus</button>
@@ -100,14 +100,14 @@
       <button type="button" class="module-tab" data-module="ranks">Ranky</button>
     </nav>
 
-    <!-- MODUL 1: DLOUHODOBÉ AKTIVITY / RUTINY + ÚKOLY -->
+    <!-- MODUL 1: OPAKOVANÉ DLOUHODOBÉ AKTIVITY + JEDNORÁZOVÉ ÚKOLY -->
     <section id="module-todos" class="module-panel">
-      <!-- Dlouhodobé cíle a opakované činnosti -->
+      <!-- Dlouhodobé opakované aktivity (Šachy, Lean 4, Kreatin) -->
       <section class="card habits-card stack-sm">
         <div class="card-header-row">
           <div>
-            <h2>Dlouhodobé aktivity & Rutiny</h2>
-            <span class="muted">Vyskočí každý den · 10 XP/den (cap 50 XP) · 🎓 Hotovo navždy po zvládnutí</span>
+            <h2>Opakované aktivity & Dlouhodobé učení</h2>
+            <span class="muted">Pro věci na každý den (Trénink šachů, Lean 4, Kreatin) · 10 XP/den · 🎓 Hotovo po naučení</span>
           </div>
           <div class="habits-meta-right">
             <span id="habits-combo-badge" class="badge badge-date mono">100 % (min. 3) = +15 XP Combo</span>
@@ -122,13 +122,12 @@
         <div id="habits-list" class="habits-list"></div>
 
         <form id="habits-add-form" class="habits-add-grid">
-          <input id="habit-name-input" type="text" maxlength="90" placeholder="+ Dlouhodobý cíl / rutina (např. Učit se Lean 4, Kreatin)..." required>
+          <input id="habit-name-input" type="text" maxlength="90" placeholder="+ Opakovaná aktivita (např. Trénink šachů, Učit se Lean 4)..." required>
           <input id="habit-icon-input" type="text" maxlength="4" value="🔁" aria-label="Ikona" title="Emoji ikona">
-          <input id="habit-due-input" type="date" aria-label="Deadline (nepovinné)" title="Do kdy to musím umět/udělat (prázdné = ∞ do nekonečna)">
+          <input id="habit-due-input" type="date" aria-label="Volitelný cíl do data" title="Volitelný cíl (prázdné = ∞ průběžně)">
           <button type="submit" class="btn btn-primary">+ Přidat</button>
         </form>
 
-        <!-- Archiv naučených / dokončených dlouhodobých cílů -->
         <details id="habits-completed-wrap" class="habits-archive hidden">
           <summary class="habits-archive-summary">
             <span>🎓 Zvládnuto / Naučeno navždy (<span id="habits-completed-count">0</span>)</span>
@@ -137,13 +136,16 @@
         </details>
       </section>
 
-      <!-- Jednorázové úkoly a projekty -->
+      <!-- Jednorázové úkoly s deadlinem (např. Do pátku poslat úkol) -->
       <form id="todo-form" class="card stack-sm">
         <div class="card-header-row">
-          <h2>Nový úkol / Projekt</h2>
-          <span class="muted mono">Rovných 10 XP / úkol · Cap 50 XP / den</span>
+          <div>
+            <h2>Jednorázové úkoly & Termíny</h2>
+            <span class="muted">Pro konkrétní úkoly typu „Do pátku poslat úkol“ — bez odpracovaných dnů, svítí podle deadlinu</span>
+          </div>
+          <span class="muted mono">10 XP / úkol · Cap 50 XP / d</span>
         </div>
-        <input id="title-input" type="text" placeholder="Co je potřeba udělat?" maxlength="200" required autocomplete="off">
+        <input id="title-input" type="text" placeholder="Např. Do pátku poslat úkol z analýzy..." maxlength="200" required autocomplete="off">
         <div class="add-controls">
           <select id="priority-input" aria-label="Priorita">
             <option value="high">Vysoká priorita</option>
@@ -522,22 +524,111 @@
       </section>
     </section>
 
-    <!-- MODUL 7: KATALOG NEKONEČNÝCH RANKŮ -->
+    <!-- MODUL 7: RANKY + PODZÁLOŽKA JAK FUNGUJÍ XP -->
     <section id="module-ranks" class="module-panel hidden">
-      <section id="ranks-hero" class="card rank-showcase"></section>
+      <div class="ranks-subtabs" role="tablist">
+        <button type="button" class="chip ranks-subtab active" data-ranks-tab="catalog">🏆 Katalog Ranků</button>
+        <button type="button" class="chip ranks-subtab" data-ranks-tab="xp-guide">📘 Jak fungují XP</button>
+      </div>
 
-      <section class="card stack-sm">
-        <div class="ranks-nav-bar">
-          <h2 id="ranks-prestige-label" class="mono">ZÁKLADNÍ CYKLUS (P0 · LVL 1–60)</h2>
-          <div class="ranks-nav-btns">
-            <button type="button" id="ranks-prev-prestige" class="btn btn-ghost">◀ Předchozí P</button>
-            <button type="button" id="ranks-curr-prestige" class="btn btn-ghost">Můj cyklus</button>
-            <button type="button" id="ranks-next-prestige" class="btn btn-primary">Další Ascension ▶</button>
+      <!-- Podpanel A: Katalog nekonečných ranků -->
+      <div id="ranks-panel-catalog" class="stack">
+        <section id="ranks-hero" class="card rank-showcase"></section>
+
+        <section class="card stack-sm">
+          <div class="ranks-nav-bar">
+            <h2 id="ranks-prestige-label" class="mono">ZÁKLADNÍ CYKLUS (P0 · LVL 1–60)</h2>
+            <div class="ranks-nav-btns">
+              <button type="button" id="ranks-prev-prestige" class="btn btn-ghost">◀ Předchozí P</button>
+              <button type="button" id="ranks-curr-prestige" class="btn btn-ghost">Můj cyklus</button>
+              <button type="button" id="ranks-next-prestige" class="btn btn-primary">Další Ascension ▶</button>
+            </div>
           </div>
-        </div>
 
-        <div id="ranks-catalog-grid" class="ranks-grid"></div>
-      </section>
+          <div id="ranks-catalog-grid" class="ranks-grid"></div>
+        </section>
+      </div>
+
+      <!-- Podpanel B: Manuál Anti-Abuse XP systému -->
+      <div id="ranks-panel-xp-guide" class="stack hidden">
+        <section class="card stack-sm">
+          <h2>Pravidla XP & Anti-Abuse limity</h2>
+          <p class="muted">
+            Systém je nastavený tak, aby nešlo farmit body spamováním úkolů ani přepínáním priorit. Hlavní váhu má každodenní konzistence, reálný čas fokusu a trénink.
+          </p>
+
+          <div class="xp-rules-grid">
+            <div class="xp-rule-card">
+              <div class="xp-rule-head">
+                <span>✅ Jednorázové úkoly</span>
+                <span class="badge badge-gym mono">Cap 50 XP / den</span>
+              </div>
+              <p class="muted"><strong>10 XP</strong> za každý splněný úkol (bez ohledu na prioritu — Vysoká nepřidává nic navíc) a <strong>+2 XP</strong> za podúkol.</p>
+            </div>
+
+            <div class="xp-rule-card">
+              <div class="xp-rule-head">
+                <span>🔁 Opakované aktivity</span>
+                <span class="badge badge-gym mono">Cap 50 + 15 XP / den</span>
+              </div>
+              <p class="muted"><strong>10 XP</strong> za denní odškrtnutí. Při splnění <strong>100 % dne</strong> (min. 3 aktivní rutiny) získáš <strong>+15 XP combo</strong>. Uzavření cíle (🎓 Hotovo) dá <strong>5 XP × odpracované dny</strong> (min. 5 dnů, max 150 XP).</p>
+            </div>
+
+            <div class="xp-rule-card">
+              <div class="xp-rule-head">
+                <span>⏱️ Fokus (Deep Work)</span>
+                <span class="badge badge-gym mono">Cap 120 XP / den</span>
+              </div>
+              <p class="muted">První 3 hodiny dávají <strong>0.5 XP / min</strong> (90 XP). Nad 3 hodiny klesá výnos na <strong>0.25 XP / min</strong>. Dokončený milník v roadmapě dá <strong>+25 XP</strong> (max 2 / den).</p>
+            </div>
+
+            <div class="xp-rule-card">
+              <div class="xp-rule-head">
+                <span>🏋️ Tréninky (Gym)</span>
+                <span class="badge badge-gym mono">Cap 80 XP / den</span>
+              </div>
+              <p class="muted"><strong>40 XP</strong> za zapsaný trénink + <strong>2 XP</strong> za každou pracovní sérii (zahřívací série <strong>W</strong> se nepočítají).</p>
+            </div>
+
+            <div class="xp-rule-card">
+              <div class="xp-rule-head">
+                <span>📊 Tělo & Strava</span>
+                <span class="badge badge-gym mono">Cap 55 XP / den</span>
+              </div>
+              <p class="muted"><strong>15 XP</strong> denní zápis + <strong>15 XP</strong> splněné bílkoviny + <strong>15 XP</strong> splněné kroky + <strong>10 XP</strong> spánek ≥ 7 hodin.</p>
+            </div>
+
+            <div class="xp-rule-card">
+              <div class="xp-rule-head">
+                <span>📸 Fotky progresu</span>
+                <span class="badge badge-gym mono">Cap 15 XP / týden</span>
+              </div>
+              <p class="muted"><strong>+15 XP</strong> za nahranou fotku, maximálně <strong>1 bodovaná fotka za kalendářní týden</strong> (nahrávat jich ale můžeš kolik chceš).</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="card stack-sm">
+          <h2>🔥 Streak Multiplikátor & Nekonečné Ranky</h2>
+          <div class="xp-rules-grid">
+            <div class="xp-rule-card">
+              <div class="xp-rule-head">
+                <span>🔥 Multiplikátor konzistence</span>
+                <span class="badge badge-medium mono">1.00× až 1.20×</span>
+              </div>
+              <p class="muted">Za každé <strong>3 dny aktivity v řadě</strong> (úkol, rutina, fokus, gym nebo zápis) roste tvůj denní XP multiplikátor o <strong>+4 %</strong> až do maxima <strong>1.20×</strong> (15+ dnů). Když řadu přerušíš, multiplikátor se vrátí na 1.00× — o dřívější XP nikdy nepřijdeš.</p>
+            </div>
+
+            <div class="xp-rule-card">
+              <div class="xp-rule-head">
+                <span>👑 Levely & Ascension</span>
+                <span class="badge badge-cardio mono">P0 → P∞</span>
+              </div>
+              <p class="muted">Každý další level vyžaduje mírně víc XP (<span class="mono">140 × L^1.22</span>). Každé <strong>2 levely</strong> postoupíš o divizi (<span class="mono">III → II → I</span>) napříč 10 tiery (<span class="mono">IRON → MYTHIC</span>). Po Levelu 60 se otevírá nekonečný cyklus <strong>Ascension P1, P2, P3... ∞</strong>.</p>
+            </div>
+          </div>
+        </section>
+      </div>
     </section>
   </main>
 

@@ -50,7 +50,7 @@ window.HabitsModule = (() => {
 
   function getUrgencyInfo(dueDate) {
     if (!dueDate) {
-      return { cls: '', badge: '∞ Do nekonečna', badgeCls: 'badge-date', rank: 9999 };
+      return { cls: '', badge: '∞ Průběžně', badgeCls: 'badge-date', rank: 9999 };
     }
     const diff = daysUntil(dueDate);
     if (diff < 0) {
@@ -62,18 +62,18 @@ window.HabitsModule = (() => {
       };
     }
     if (diff === 0) {
-      return { cls: 'urgency-today', badge: 'DEADLINE DNES!', badgeCls: 'badge-overdue', rank: 0 };
+      return { cls: 'urgency-today', badge: 'CÍL DNES!', badgeCls: 'badge-overdue', rank: 0 };
     }
     if (diff <= 2) {
       return {
         cls: 'urgency-soon',
-        badge: diff === 1 ? 'Zbývá 1 den' : 'Zbývají 2 dny',
+        badge: diff === 1 ? 'Cíl zítra' : 'Cíl za 2 dny',
         badgeCls: 'badge-high',
         rank: diff,
       };
     }
     if (diff <= 5) {
-      return { cls: 'urgency-near', badge: `Zbývá ${diff} dní`, badgeCls: 'badge-medium', rank: diff };
+      return { cls: 'urgency-near', badge: `Cíl za ${diff} dny`, badgeCls: 'badge-medium', rank: diff };
     }
     return { cls: '', badge: `Do ${dueDate} (${diff}d)`, badgeCls: 'badge-date', rank: diff };
   }
@@ -120,7 +120,6 @@ window.HabitsModule = (() => {
     const activeHabits = habits.filter((h) => !h.is_completed);
     const completedHabits = habits.filter((h) => h.is_completed);
 
-    // Seřazení: nejdřív dnešní nesplněné podle urgence deadlinu, pak splněné dnes
     const sortedActive = [...activeHabits].sort((a, b) => {
       const aDone = doneTodaySet.has(a.id) ? 1 : 0;
       const bDone = doneTodaySet.has(b.id) ? 1 : 0;
@@ -147,7 +146,7 @@ window.HabitsModule = (() => {
 
     if (!sortedActive.length) {
       el.list.innerHTML =
-        '<p class="muted" style="text-align:center; padding:8px 0;">Přidej si dlouhodobý cíl nebo denní rutinu (např. Učit se Lean 4, Kreatin, 10k kroků). Vyskočí ti tu každý den, dokud ho neukončíš.</p>';
+        '<p class="muted" style="text-align:center; padding:8px 0;">Sem patří jen opakované aktivity (např. Trénink šachů, Učit se Lean 4, Kreatin). Jednorázové úkoly typu „Do pátku poslat úkol“ dávej níž do sekce Úkoly.</p>';
     } else {
       el.list.innerHTML = sortedActive
         .map((h) => {
@@ -156,6 +155,11 @@ window.HabitsModule = (() => {
           const urg = isDoneToday
             ? { ...getUrgencyInfo(h.due_date), cls: '' }
             : getUrgencyInfo(h.due_date);
+
+          const daysBadge =
+            totalDays > 0
+              ? `<span class="badge badge-date mono">Odpracováno: ${totalDays}d</span>`
+              : '';
 
           return `
             <div class="habit-item ${isDoneToday ? 'done' : ''} ${urg.cls}" data-habit-id="${h.id}">
@@ -166,13 +170,13 @@ window.HabitsModule = (() => {
                   <span class="habit-name">${escapeHtml(h.name)}</span>
                   <div class="habit-sub-badges">
                     <span class="badge ${urg.badgeCls}">${urg.badge}</span>
-                    <span class="badge badge-date mono">Odpracováno: ${totalDays}d</span>
+                    ${daysBadge}
                   </div>
                 </div>
               </label>
               <div class="habit-right">
                 <span class="skill-streak mono ${streak > 0 ? 'active' : ''}" title="Aktuální streak">🔥 ${streak}</span>
-                <button type="button" class="btn-finish-habit" data-finish-habit="${h.id}" title="Uzavřít natrvalo jako naučené / dokončené (bonus XP za ≥ 5 dnů)">🎓 Hotovo</button>
+                <button type="button" class="btn-finish-habit" data-finish-habit="${h.id}" title="Uzavřít natrvalo jako naučené / dokončené (bonus XP od 5 dnů)">🎓 Hotovo</button>
                 <button type="button" class="icon-btn delete" data-del-habit="${h.id}" title="Smazat">✕</button>
               </div>
             </div>
@@ -181,7 +185,6 @@ window.HabitsModule = (() => {
         .join('');
     }
 
-    // Archiv dokončených dlouhodobých cílů
     if (el.completedWrap && el.completedList && el.completedCount) {
       el.completedWrap.classList.toggle('hidden', completedHabits.length === 0);
       el.completedCount.textContent = String(completedHabits.length);
@@ -242,13 +245,12 @@ window.HabitsModule = (() => {
 
         el.nameInput.value = '';
         if (el.dueInput) el.dueInput.value = '';
-        window.appShowToast(`Aktivita „${name}“ přidána do denního přehledu.`);
+        window.appShowToast(`Opakovaná aktivita „${name}“ přidána.`);
         await loadAll();
       });
     }
 
     const handleHabitClick = async (e) => {
-      // Smazat
       const delBtn = e.target.closest('[data-del-habit]');
       if (delBtn) {
         if (!confirm('Smazat tuto aktivitu včetně celé její historie?')) return;
@@ -262,7 +264,6 @@ window.HabitsModule = (() => {
         return;
       }
 
-      // Uzavřít navždy jako naučené / dokončené
       const finishBtn = e.target.closest('[data-finish-habit]');
       if (finishBtn) {
         const habitId = finishBtn.dataset.finishHabit;
@@ -271,7 +272,7 @@ window.HabitsModule = (() => {
         const bonusTxt =
           totalDays >= 5
             ? `Získáš jednorázový bonus +${Math.min(150, totalDays * 5)} XP za ${totalDays} odpracovaných dnů.`
-            : `Odpracováno zatím jen ${totalDays} dnů (bonus za dokončení se uděluje od 5 dnů, aby to nešlo abusovat).`;
+            : `Odpracováno zatím jen ${totalDays} dnů (bonus za dokončení se uděluje od 5 dnů).`;
 
         if (!confirm(`Označit „${habit?.name}“ jako natrvalo dokončené / naučené?\n\n${bonusTxt}`)) {
           return;
@@ -286,13 +287,12 @@ window.HabitsModule = (() => {
           window.appShowError(`Chyba dokončení: ${error.message}`);
           return;
         }
-        window.appShowToast('Dlouhodobý cíl úspěšně uzavřen!');
+        window.appShowToast('Dlouhodobá aktivita uzavřena!');
         await loadAll();
         window.ProgressModule?.refresh();
         return;
       }
 
-      // Obnovit z archivu
       const reopenBtn = e.target.closest('[data-reopen-habit]');
       if (reopenBtn) {
         const { error } = await db
@@ -308,7 +308,6 @@ window.HabitsModule = (() => {
         return;
       }
 
-      // Odškrtnutí dnešního dne
       if (e.target.classList.contains('habit-check')) {
         const item = e.target.closest('.habit-item');
         const habitId = item.dataset.habitId;
