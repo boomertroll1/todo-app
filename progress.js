@@ -8,6 +8,7 @@ window.ProgressModule = (() => {
     sets: [],
     profile: null,
     photos: [],
+    focusSessions: [],
   };
   let photoFilter = 'all';
   let achCatFilter = 'all';
@@ -69,7 +70,6 @@ window.ProgressModule = (() => {
     el.photoFilterBtns = document.querySelectorAll('.photo-filter-chip');
     el.photoGallery = document.getElementById('photo-gallery-grid');
 
-    // Záložka Ranky
     el.ranksHero = document.getElementById('ranks-hero');
     el.ranksPrestigeLabel = document.getElementById('ranks-prestige-label');
     el.ranksPrevBtn = document.getElementById('ranks-prev-prestige');
@@ -225,13 +225,14 @@ window.ProgressModule = (() => {
   async function loadAll() {
     if (!db || !user) return;
 
-    const [todosRes, logsRes, woRes, setsRes, profRes, photosRes] = await Promise.all([
+    const [todosRes, logsRes, woRes, setsRes, profRes, photosRes, focusRes] = await Promise.all([
       db.from('todos').select('id, is_completed, priority, subtasks, created_at'),
       db.from('daily_logs').select('*').order('log_date', { ascending: true }).limit(500),
       db.from('workouts').select('*').order('workout_date', { ascending: true }).limit(500),
       db.from('workout_sets').select('*').limit(10000),
       db.from('fitness_profile').select('*').eq('user_id', user.id).maybeSingle(),
       db.from('user_photos').select('*').order('photo_date', { ascending: false }).order('created_at', { ascending: false }).limit(80),
+      db.from('focus_sessions').select('session_date, minutes').limit(5000),
     ]);
 
     dataCache = {
@@ -241,6 +242,7 @@ window.ProgressModule = (() => {
       sets: setsRes.data || [],
       profile: profRes.data || null,
       photos: photosRes.data || [],
+      focusSessions: focusRes.data || [],
     };
 
     renderAll();
@@ -249,7 +251,7 @@ window.ProgressModule = (() => {
   let lastComputed = null;
 
   function computeRPG() {
-    const { todos, logs, workouts, sets, profile, photos } = dataCache;
+    const { todos, logs, workouts, sets, profile, photos, focusSessions } = dataCache;
     const xpByDate = {};
     const addDailyXp = (dateStr, amount) => {
       if (!dateStr) return;
@@ -339,7 +341,15 @@ window.ProgressModule = (() => {
       addDailyXp(p.photo_date, 15);
     });
 
-    const totalXp = todoXp + logXp + workoutXp + photoXp;
+    // XP z Deep Work fokusu (+1 XP za minutu)
+    let focusXp = 0;
+    focusSessions.forEach((fs) => {
+      const mins = Number(fs.minutes) || 0;
+      focusXp += mins;
+      addDailyXp(fs.session_date, mins);
+    });
+
+    const totalXp = todoXp + logXp + workoutXp + photoXp + focusXp;
     const levelInfo = getLevelInfo(totalXp);
 
     const gymStats = window.GymStats
@@ -357,7 +367,10 @@ window.ProgressModule = (() => {
     );
     const proteinPct = gymStats.proteinHitPct ?? 0;
     const disScore = Math.min(100, Math.round(Math.min(50, gymStats.currentStreak * 5) + proteinPct * 0.5));
-    const focusScore = Math.min(100, Math.round(Math.min(100, completedTodos * 5 + completedSubtasks * 1.5)));
+    const focusScore = Math.min(
+      100,
+      Math.round(completedTodos * 4 + completedSubtasks * 1.5 + (focusXp / 60) * 3)
+    );
     const avgSleep = gymStats.avgSleep30 || 0;
     const sleepPart = avgSleep ? Math.min(75, Math.max(0, ((avgSleep - 4.5) / 3.5) * 75)) : 0;
     const restPart = gymStats.restDays30 ? Math.min(25, gymStats.restDays30 * 5) : 0;
@@ -413,6 +426,7 @@ window.ProgressModule = (() => {
       logXp,
       workoutXp,
       photoXp,
+      focusXp,
       totalTonnage,
       completedTodos,
       completedSubtasks,
@@ -420,7 +434,7 @@ window.ProgressModule = (() => {
         { label: 'STR (Síla)', value: strScore },
         { label: 'END (Výdrž)', value: endScore },
         { label: 'DIS (Disciplína)', value: disScore },
-        { label: 'FOC (Úkoly)', value: focusScore },
+        { label: 'FOC (Fokus & Úkoly)', value: focusScore },
         { label: 'REC (Regenerace)', value: recScore },
       ],
       xpTimeline,
@@ -562,8 +576,10 @@ window.ProgressModule = (() => {
 
     if (el.progKpiGrid) {
       const unlockedCnt = r.achievements.filter((a) => a.unlocked).length;
+      const focusHours = (r.focusXp / 60).toFixed(1);
       el.progKpiGrid.innerHTML = [
         `<div class="kpi-card kpi-glow"><span class="kpi-label">Achievementy</span><span class="kpi-value kpi-accent mono">${unlockedCnt} / ${r.achievements.length}</span><span class="kpi-sub">${Math.round((unlockedCnt / Math.max(1, r.achievements.length)) * 100)} % dokončeno</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">XP z fokusu</span><span class="kpi-value mono">${r.focusXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Deep Work: ${focusHours} h</span></div>`,
         `<div class="kpi-card"><span class="kpi-label">XP z tréninků</span><span class="kpi-value mono">${r.workoutXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Tonáž: ${Math.round(r.totalTonnage).toLocaleString('cs-CZ')} kg</span></div>`,
         `<div class="kpi-card"><span class="kpi-label">XP z těla & stravy</span><span class="kpi-value mono">${r.logXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Streak: ${r.streak} dní</span></div>`,
         `<div class="kpi-card"><span class="kpi-label">XP z úkolů & fotek</span><span class="kpi-value mono">${(r.todoXp + r.photoXp).toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">${r.completedTodos} úkolů · ${r.completedSubtasks} podúkolů</span></div>`,
@@ -695,7 +711,6 @@ window.ProgressModule = (() => {
     if (initializedListeners) return;
     initializedListeners = true;
 
-    // Filtry achievementů
     el.achCatBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
         achCatFilter = btn.dataset.achCat;
@@ -712,7 +727,6 @@ window.ProgressModule = (() => {
       });
     });
 
-    // Navigace nekonečnými Ascension cykly v záložce Ranky
     if (el.ranksPrevBtn) {
       el.ranksPrevBtn.addEventListener('click', () => {
         if (viewedPrestige > 0) {
@@ -734,7 +748,6 @@ window.ProgressModule = (() => {
       });
     }
 
-    // Nahrávání fotek
     if (el.photoForm) {
       el.photoForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -842,7 +855,7 @@ window.ProgressModule = (() => {
     reset() {
       user = null;
       lastComputed = null;
-      dataCache = { todos: [], logs: [], workouts: [], sets: [], profile: null, photos: [] };
+      dataCache = { todos: [], logs: [], workouts: [], sets: [], profile: null, photos: [], focusSessions: [] };
     },
   };
 })();

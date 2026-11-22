@@ -20,6 +20,7 @@
   <script src="./gym.js" defer></script>
   <script src="./workouts.js" defer></script>
   <script src="./calendar.js" defer></script>
+  <script src="./focus.js" defer></script>
   <script src="./achievements.js" defer></script>
   <script src="./progress.js" defer></script>
   <script src="./app.js" defer></script>
@@ -87,9 +88,10 @@
       <div id="hud-streak" class="hud-streak mono" title="Aktuální streak">🔥 0d</div>
     </section>
 
-    <!-- Přepínač modulů (6 záložek) -->
+    <!-- Přepínač modulů (7 záložek) -->
     <nav class="module-tabs" role="tablist">
       <button type="button" class="module-tab active" data-module="todos">Úkoly</button>
+      <button type="button" class="module-tab" data-module="focus">Fokus</button>
       <button type="button" class="module-tab" data-module="calendar">Kalendář</button>
       <button type="button" class="module-tab" data-module="gym">Tělo & Strava</button>
       <button type="button" class="module-tab" data-module="workouts">Tréninky</button>
@@ -142,7 +144,64 @@
       <p id="empty-state" class="empty-state hidden">Žádné úkoly k zobrazení.</p>
     </section>
 
-    <!-- MODUL 2: KALENDÁŘ -->
+    <!-- MODUL 2: FOKUS & SKILL HEATMAPS -->
+    <section id="module-focus" class="module-panel hidden">
+      <div id="focus-summary-bar" class="kpi-grid"></div>
+
+      <!-- Deep Work Časovač -->
+      <section class="card timer-card stack-sm">
+        <div class="card-header-row">
+          <h2>Deep Work Časovač (+1 XP / min)</h2>
+          <div class="filter-group">
+            <button type="button" class="chip timer-mode-chip active" data-timer-mode="stopwatch">Stopky</button>
+            <button type="button" class="chip timer-mode-chip" data-timer-mode="countdown">Odpočet</button>
+          </div>
+        </div>
+
+        <div class="timer-top-controls">
+          <select id="timer-skill-select" aria-label="Vyber aktivitu"></select>
+          <div id="timer-preset-row" class="filter-group hidden">
+            <button type="button" class="chip timer-preset-chip" data-timer-min="25">25m</button>
+            <button type="button" class="chip timer-preset-chip active" data-timer-min="45">45m</button>
+            <button type="button" class="chip timer-preset-chip" data-timer-min="60">60m</button>
+            <button type="button" class="chip timer-preset-chip" data-timer-min="90">90m</button>
+          </div>
+        </div>
+
+        <div id="timer-display" class="timer-display mono">00:00</div>
+
+        <div class="timer-actions">
+          <button type="button" id="timer-start-btn" class="btn btn-primary">▶ Start</button>
+          <button type="button" id="timer-stop-save-btn" class="btn btn-ghost" disabled>✓ Uložit čas</button>
+          <button type="button" id="timer-reset-btn" class="btn btn-danger-ghost">↺ Reset</button>
+        </div>
+      </section>
+
+      <!-- Přidání dlouhodobé aktivity -->
+      <form id="focus-add-skill-form" class="card stack-sm">
+        <div class="card-header-row">
+          <h2>Aktivity & Roční heatmapy</h2>
+          <div class="cal-nav">
+            <button type="button" id="focus-prev-year" class="btn btn-ghost">◀</button>
+            <span id="focus-year-label" class="focus-year-pill mono">2026</span>
+            <button type="button" id="focus-next-year" class="btn btn-ghost">▶</button>
+          </div>
+        </div>
+
+        <div class="focus-add-grid">
+          <input id="focus-skill-name" type="text" maxlength="50" placeholder="Nová aktivita (např. Kódování, Matematika, Šachy)..." required>
+          <input id="focus-skill-icon" type="text" maxlength="4" value="💻" aria-label="Ikona" title="Emoji ikona">
+          <input id="focus-skill-color" type="color" value="#00f0ff" aria-label="Barva heatmapy" title="Barva heatmapy">
+          <input id="focus-skill-goal" type="number" min="5" max="600" value="30" placeholder="Cíl (min/d)" title="Denní cíl v minutách">
+          <button type="submit" class="btn btn-primary">+ Přidat</button>
+        </div>
+      </form>
+
+      <!-- Seznam karet aktivit s heatmapami -->
+      <div id="focus-skills-list" class="stack"></div>
+    </section>
+
+    <!-- MODUL 3: KALENDÁŘ -->
     <section id="module-calendar" class="module-panel hidden">
       <section class="card stack-sm">
         <div class="cal-header">
@@ -174,7 +233,7 @@
       </section>
     </section>
 
-    <!-- MODUL 3: TĚLO & STRAVA -->
+    <!-- MODUL 4: TĚLO & STRAVA -->
     <section id="module-gym" class="module-panel hidden">
       <div class="gym-top-bar">
         <div id="profile-summary" class="muted mono">Nastav si výšku a cíle v profilu.</div>
@@ -278,7 +337,7 @@
       </section>
     </section>
 
-    <!-- MODUL 4: TRÉNINKY & SÍLA -->
+    <!-- MODUL 5: TRÉNINKY & SÍLA -->
     <section id="module-workouts" class="module-panel hidden">
       <form id="workout-form" class="card stack-sm">
         <div class="card-header-row">
@@ -352,7 +411,7 @@
       </section>
     </section>
 
-    <!-- MODUL 5: PROGRES, ACHIEVEMENTY (143) & FOTKY -->
+    <!-- MODUL 6: PROGRES, ACHIEVEMENTY (143) & FOTKY -->
     <section id="module-progress" class="module-panel hidden">
       <section id="rank-showcase" class="card rank-showcase"></section>
 
@@ -369,7 +428,6 @@
         </div>
       </section>
 
-      <!-- Fotogalerie progresu -->
       <section class="card stack-sm">
         <div class="section-head">
           <h2>Fotogalerie & Progres</h2>
@@ -400,7 +458,6 @@
         <div id="photo-gallery-grid" class="photo-gallery-grid"></div>
       </section>
 
-      <!-- 143 Achievementů s filtry -->
       <section class="card stack-sm">
         <div class="section-head">
           <h2>Achievementy</h2>
@@ -427,7 +484,7 @@
       </section>
     </section>
 
-    <!-- MODUL 6: KATALOG NEKONEČNÝCH RANKŮ -->
+    <!-- MODUL 7: KATALOG NEKONEČNÝCH RANKŮ -->
     <section id="module-ranks" class="module-panel hidden">
       <section id="ranks-hero" class="card rank-showcase"></section>
 
@@ -480,6 +537,40 @@
       <div class="dialog-actions">
         <button type="button" id="cancel-edit-btn" class="btn btn-ghost">Zrušit</button>
         <button type="submit" class="btn btn-primary">Uložit</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Dialog pro ruční zápis času k aktivitě -->
+  <dialog id="focus-log-dialog" class="edit-dialog">
+    <form id="focus-log-form" class="stack">
+      <h2 id="focus-log-title">Zapsat čas</h2>
+      <input type="hidden" id="focus-log-skill-id">
+      <div class="edit-row">
+        <label class="field">
+          <span>Datum</span>
+          <input id="focus-log-date" type="date" required>
+        </label>
+        <label class="field">
+          <span>Minuty (+1 XP / min)</span>
+          <input id="focus-log-minutes" type="number" min="1" max="1440" required>
+        </label>
+      </div>
+      <div class="filter-group">
+        <button type="button" class="chip focus-quick-min" data-quick-min="15">15m</button>
+        <button type="button" class="chip focus-quick-min" data-quick-min="30">30m</button>
+        <button type="button" class="chip focus-quick-min" data-quick-min="45">45m</button>
+        <button type="button" class="chip focus-quick-min" data-quick-min="60">60m</button>
+        <button type="button" class="chip focus-quick-min" data-quick-min="90">90m</button>
+        <button type="button" class="chip focus-quick-min" data-quick-min="120">2h</button>
+      </div>
+      <label class="field">
+        <span>Poznámka (volitelné)</span>
+        <input id="focus-log-notes" type="text" maxlength="160" placeholder="Na čem jsi pracoval...">
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="focus-log-cancel-btn" class="btn btn-ghost">Zrušit</button>
+        <button type="submit" class="btn btn-primary">Uložit čas</button>
       </div>
     </form>
   </dialog>

@@ -31,6 +31,7 @@ const el = {
 
   moduleTabs: document.querySelectorAll('.module-tab'),
   moduleTodos: document.getElementById('module-todos'),
+  moduleFocus: document.getElementById('module-focus'),
   moduleCalendar: document.getElementById('module-calendar'),
   moduleGym: document.getElementById('module-gym'),
   moduleWorkouts: document.getElementById('module-workouts'),
@@ -138,6 +139,7 @@ function switchModule(moduleName) {
     tab.classList.toggle('active', tab.dataset.module === moduleName);
   });
   el.moduleTodos.classList.toggle('hidden', moduleName !== 'todos');
+  el.moduleFocus.classList.toggle('hidden', moduleName !== 'focus');
   el.moduleCalendar.classList.toggle('hidden', moduleName !== 'calendar');
   el.moduleGym.classList.toggle('hidden', moduleName !== 'gym');
   el.moduleWorkouts.classList.toggle('hidden', moduleName !== 'workouts');
@@ -146,6 +148,7 @@ function switchModule(moduleName) {
 
   const titles = {
     todos: 'Úkoly',
+    focus: 'Fokus & Skilly',
     calendar: 'Kalendář',
     gym: 'Tělo & Strava',
     workouts: 'Tréninky & Síla',
@@ -154,6 +157,7 @@ function switchModule(moduleName) {
   };
   el.pageTitle.textContent = titles[moduleName] || 'Úkoly';
 
+  if (moduleName === 'focus') window.FocusModule?.onShow();
   if (moduleName === 'calendar') window.CalendarModule?.onShow();
   if (moduleName === 'workouts') window.WorkoutsModule?.onShow();
   if (moduleName === 'progress') window.ProgressModule?.onShow();
@@ -166,7 +170,7 @@ el.moduleTabs.forEach((tab) => {
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- Návrhové podúkoly při přidávání úkolu ---
+// --- Návrhové podúkoly ---
 function renderDraftSubtasks() {
   el.subtaskDraftList.innerHTML = state.draftSubtasks
     .map(
@@ -238,7 +242,7 @@ el.editSubtaskList.addEventListener('click', (e) => {
   renderEditSubtasks();
 });
 
-// --- Načítání a vykreslování úkolů ---
+// --- Úkoly ---
 async function fetchTodos() {
   const { data, error } = await db
     .from('todos')
@@ -376,6 +380,7 @@ el.logoutBtn.addEventListener('click', async () => {
 
 el.refreshBtn.addEventListener('click', () => {
   fetchTodos();
+  window.FocusModule?.refresh();
   window.CalendarModule?.refresh();
   window.GymModule?.refresh();
   window.WorkoutsModule?.refresh();
@@ -383,7 +388,6 @@ el.refreshBtn.addEventListener('click', () => {
   showToast('Systém synchronizován.');
 });
 
-// --- Přidání úkolu ---
 el.todoForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = el.titleInput.value.trim();
@@ -417,7 +421,6 @@ el.todoForm.addEventListener('submit', async (e) => {
   window.CalendarModule?.refresh();
 });
 
-// --- Kliknutí na úkol / podúkol ---
 el.todoList.addEventListener('click', async (e) => {
   const item = e.target.closest('.todo-item');
   if (!item) return;
@@ -490,7 +493,6 @@ el.todoList.addEventListener('click', async (e) => {
   }
 });
 
-// Uložení úpravy
 el.editForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = el.editId.value;
@@ -557,6 +559,7 @@ el.clearCompletedBtn.addEventListener('click', async () => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.user) {
     fetchTodos();
+    window.FocusModule?.refresh();
     window.CalendarModule?.refresh();
     window.GymModule?.refresh();
     window.WorkoutsModule?.refresh();
@@ -569,6 +572,7 @@ function onSignedIn(user) {
   showView('app');
   switchModule(state.activeModule);
   fetchTodos();
+  window.FocusModule?.init(db, user);
   window.CalendarModule?.init(db, user);
   window.GymModule?.init(db, user);
   window.WorkoutsModule?.init(db, user);
@@ -581,6 +585,7 @@ db.auth.onAuthStateChange((_event, session) => {
   } else {
     state.user = null;
     state.todos = [];
+    window.FocusModule?.reset();
     window.CalendarModule?.reset();
     window.GymModule?.reset();
     window.WorkoutsModule?.reset();
