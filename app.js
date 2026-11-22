@@ -105,25 +105,40 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-function getTodayLocal() {
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const [y, m, d] = dateStr.split('-').map(Number);
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const targetUTC = Date.UTC(y, m - 1, d);
+  return Math.round((targetUTC - todayUTC) / 86400000);
+}
+
+function getTodoUrgency(dateStr, isCompleted) {
+  if (!dateStr || isCompleted) return { cls: '', rank: 9999 };
+  const diff = daysUntil(dateStr);
+  if (diff < 0) return { cls: 'urgency-overdue', rank: diff };
+  if (diff === 0) return { cls: 'urgency-today', rank: 0 };
+  if (diff <= 2) return { cls: 'urgency-soon', rank: diff };
+  if (diff <= 5) return { cls: 'urgency-near', rank: diff };
+  return { cls: '', rank: diff };
 }
 
 function formatDueDate(dateStr, isCompleted) {
   if (!dateStr) return null;
-  const today = getTodayLocal();
   const [y, m, d] = dateStr.split('-').map(Number);
   const currentYear = new Date().getFullYear();
   const formatted = y === currentYear ? `${d}. ${m}.` : `${d}. ${m}. ${y}`;
 
   if (isCompleted) return { text: formatted, cls: 'badge-date' };
-  if (dateStr < today) return { text: `Po termínu (${formatted})`, cls: 'badge-overdue' };
-  if (dateStr === today) return { text: 'Dnes', cls: 'badge-today' };
-  return { text: formatted, cls: 'badge-date' };
+
+  const diff = daysUntil(dateStr);
+  if (diff < 0) return { text: `PO TERMÍNU (${Math.abs(diff)}d · ${formatted})`, cls: 'badge-overdue' };
+  if (diff === 0) return { text: 'DEADLINE DNES!', cls: 'badge-overdue' };
+  if (diff === 1) return { text: `ZÍTRA (${formatted})`, cls: 'badge-high' };
+  if (diff === 2) return { text: `Za 2 dny (${formatted})`, cls: 'badge-high' };
+  if (diff <= 5) return { text: `Za ${diff} dny (${formatted})`, cls: 'badge-medium' };
+  return { text: `${formatted} (za ${diff}d)`, cls: 'badge-date' };
 }
 
 function showView(name) {
@@ -147,8 +162,8 @@ function switchModule(moduleName) {
   el.moduleRanks.classList.toggle('hidden', moduleName !== 'ranks');
 
   const titles = {
-    todos: 'Úkoly',
-    focus: 'Fokus & Skilly',
+    todos: 'Úkoly & Rutiny',
+    focus: 'Fokus & Dlouhodobé učení',
     calendar: 'Kalendář',
     gym: 'Tělo & Strava',
     workouts: 'Tréninky & Síla',
@@ -279,6 +294,16 @@ function getVisibleTodos() {
       if (dueA !== dueB) return dueA.localeCompare(dueB);
       return PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
     }
+
+    // Smart řazení: cokoliv s deadlinem <= 5 dní automaticky vyletí nahoru podle urgence
+    const urgA = getTodoUrgency(a.due_date, a.is_completed).rank;
+    const urgB = getTodoUrgency(b.due_date, b.is_completed).rank;
+    const isUrgentA = urgA <= 5;
+    const isUrgentB = urgB <= 5;
+
+    if (isUrgentA && isUrgentB && urgA !== urgB) return urgA - urgB;
+    if (isUrgentA !== isUrgentB) return isUrgentA ? -1 : 1;
+
     const pDiff = PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
     if (pDiff !== 0) return pDiff;
     const dueA = a.due_date || '9999-12-31';
@@ -306,6 +331,7 @@ function renderTodos() {
       const dueBadge = dueInfo
         ? `<span class="badge ${dueInfo.cls}">${escapeHtml(dueInfo.text)}</span>`
         : '';
+      const urg = getTodoUrgency(todo.due_date, todo.is_completed);
 
       const subs = Array.isArray(todo.subtasks) ? todo.subtasks : [];
       let subtasksHtml = '';
@@ -337,7 +363,7 @@ function renderTodos() {
       }
 
       return `
-        <li class="todo-item ${todo.is_completed ? 'completed' : ''}" data-id="${todo.id}">
+        <li class="todo-item ${todo.is_completed ? 'completed' : ''} ${urg.cls}" data-id="${todo.id}">
           <input type="checkbox" class="todo-checkbox" ${todo.is_completed ? 'checked' : ''} aria-label="Označit jako splněné">
           <div class="todo-content">
             <div class="todo-title">${escapeHtml(todo.title)}</div>
@@ -380,6 +406,7 @@ el.logoutBtn.addEventListener('click', async () => {
 
 el.refreshBtn.addEventListener('click', () => {
   fetchTodos();
+  window.HabitsModule?.refresh();
   window.FocusModule?.refresh();
   window.CalendarModule?.refresh();
   window.GymModule?.refresh();
@@ -452,11 +479,20 @@ el.todoList.addEventListener('click', async (e) => {
 
   if (e.target.classList.contains('todo-checkbox')) {
     const nextValue = e.target.checked;
+    const completedAt = nextValue ? new Date().toISOString() : null;
+    const prevCompletedAt = todo.completed_at;
     todo.is_completed = nextValue;
+    todo.completed_at = completedAt;
     renderTodos();
-    const { error } = await db.from('todos').update({ is_completed: nextValue }).eq('id', id);
+
+    const { error } = await db
+      .from('todos')
+      .update({ is_completed: nextValue, completed_at: completedAt })
+      .eq('id', id);
+
     if (error) {
       todo.is_completed = !nextValue;
+      todo.completed_at = prevCompletedAt;
       renderTodos();
       showError(`Chyba aktualizace: ${error.message}`);
     } else {
@@ -559,6 +595,7 @@ el.clearCompletedBtn.addEventListener('click', async () => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.user) {
     fetchTodos();
+    window.HabitsModule?.refresh();
     window.FocusModule?.refresh();
     window.CalendarModule?.refresh();
     window.GymModule?.refresh();
@@ -572,6 +609,7 @@ function onSignedIn(user) {
   showView('app');
   switchModule(state.activeModule);
   fetchTodos();
+  window.HabitsModule?.init(db, user);
   window.FocusModule?.init(db, user);
   window.CalendarModule?.init(db, user);
   window.GymModule?.init(db, user);
@@ -585,6 +623,7 @@ db.auth.onAuthStateChange((_event, session) => {
   } else {
     state.user = null;
     state.todos = [];
+    window.HabitsModule?.reset();
     window.FocusModule?.reset();
     window.CalendarModule?.reset();
     window.GymModule?.reset();

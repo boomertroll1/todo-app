@@ -100,17 +100,17 @@
       <button type="button" class="module-tab" data-module="ranks">Ranky</button>
     </nav>
 
-    <!-- MODUL 1: DENNÍ RUTINY (HABITS) + ÚKOLY -->
+    <!-- MODUL 1: DLOUHODOBÉ AKTIVITY / RUTINY + ÚKOLY -->
     <section id="module-todos" class="module-panel">
-      <!-- Opakované činnosti (Daily Quests) -->
+      <!-- Dlouhodobé cíle a opakované činnosti -->
       <section class="card habits-card stack-sm">
         <div class="card-header-row">
           <div>
-            <h2>Denní rutiny (Opakované činnosti)</h2>
-            <span class="muted">Resetují se každý den o půlnoci · Cap 80 XP + 20 XP combo</span>
+            <h2>Dlouhodobé aktivity & Rutiny</h2>
+            <span class="muted">Vyskočí každý den · 10 XP/den (cap 50 XP) · 🎓 Hotovo navždy po zvládnutí</span>
           </div>
           <div class="habits-meta-right">
-            <span id="habits-combo-badge" class="badge badge-date mono">100 % = +20 XP Combo</span>
+            <span id="habits-combo-badge" class="badge badge-date mono">100 % (min. 3) = +15 XP Combo</span>
             <span id="habits-progress-text" class="mono muted">0 / 0 dnes</span>
           </div>
         </div>
@@ -122,37 +122,41 @@
         <div id="habits-list" class="habits-list"></div>
 
         <form id="habits-add-form" class="habits-add-grid">
-          <input id="habit-name-input" type="text" maxlength="90" placeholder="+ Nová denní rutina (např. Kreatin, Lean 4 30m, 10k kroků)..." required>
-          <input id="habit-icon-input" type="text" maxlength="4" value="🔁" aria-label="Ikona">
-          <select id="habit-xp-select" aria-label="Obtížnost rutiny">
-            <option value="10">Lehká (+10 XP)</option>
-            <option value="15" selected>Střední (+15 XP)</option>
-            <option value="20">Těžká (+20 XP)</option>
-          </select>
-          <button type="submit" class="btn btn-ghost">+ Přidat</button>
+          <input id="habit-name-input" type="text" maxlength="90" placeholder="+ Dlouhodobý cíl / rutina (např. Učit se Lean 4, Kreatin)..." required>
+          <input id="habit-icon-input" type="text" maxlength="4" value="🔁" aria-label="Ikona" title="Emoji ikona">
+          <input id="habit-due-input" type="date" aria-label="Deadline (nepovinné)" title="Do kdy to musím umět/udělat (prázdné = ∞ do nekonečna)">
+          <button type="submit" class="btn btn-primary">+ Přidat</button>
         </form>
+
+        <!-- Archiv naučených / dokončených dlouhodobých cílů -->
+        <details id="habits-completed-wrap" class="habits-archive hidden">
+          <summary class="habits-archive-summary">
+            <span>🎓 Zvládnuto / Naučeno navždy (<span id="habits-completed-count">0</span>)</span>
+          </summary>
+          <div id="habits-completed-list" class="habits-list" style="margin-top:8px;"></div>
+        </details>
       </section>
 
       <!-- Jednorázové úkoly a projekty -->
       <form id="todo-form" class="card stack-sm">
         <div class="card-header-row">
           <h2>Nový úkol / Projekt</h2>
-          <span class="muted mono">Denní XP strop: 100 XP</span>
+          <span class="muted mono">Rovných 10 XP / úkol · Cap 50 XP / den</span>
         </div>
         <input id="title-input" type="text" placeholder="Co je potřeba udělat?" maxlength="200" required autocomplete="off">
         <div class="add-controls">
           <select id="priority-input" aria-label="Priorita">
-            <option value="high">Vysoká (+25 XP)</option>
-            <option value="medium" selected>Střední (+15 XP)</option>
-            <option value="low">Nízká (+10 XP)</option>
+            <option value="high">Vysoká priorita</option>
+            <option value="medium" selected>Střední priorita</option>
+            <option value="low">Nízká priorita</option>
           </select>
-          <input id="due-input" type="date" aria-label="Termín">
+          <input id="due-input" type="date" aria-label="Deadline" title="Do kdy to musí být hotové (čím blíž, tím víc svítí)">
           <button type="submit" class="btn btn-primary">Přidat</button>
         </div>
 
         <div class="subtask-builder">
           <div class="subtask-input-row">
-            <input id="subtask-draft-input" type="text" placeholder="+ Přidat podúkol (volitelné, +4 XP za každý)..." maxlength="140" autocomplete="off">
+            <input id="subtask-draft-input" type="text" placeholder="+ Přidat podúkol (volitelné, +2 XP za každý)..." maxlength="140" autocomplete="off">
             <button type="button" id="add-subtask-draft-btn" class="btn btn-ghost">+ Krok</button>
           </div>
           <ul id="subtask-draft-list" class="subtask-draft-list"></ul>
@@ -167,8 +171,8 @@
         </div>
         <div class="toolbar-right">
           <select id="sort-select" aria-label="Řazení">
-            <option value="smart">Podle priority</option>
-            <option value="due">Podle termínu</option>
+            <option value="smart">Urgence & Priorita</option>
+            <option value="due">Podle deadlinu</option>
             <option value="newest">Nejnovější</option>
           </select>
           <button id="clear-completed-btn" type="button" class="btn btn-danger-ghost hidden">
@@ -187,7 +191,7 @@
 
       <section class="card timer-card stack-sm">
         <div class="card-header-row">
-          <h2>Deep Work Časovač (1 XP/min do 4h, cap 300 XP/d)</h2>
+          <h2>Deep Work Časovač (0.5 XP/min do 3h, cap 120 XP/d)</h2>
           <div class="filter-group">
             <button type="button" class="chip timer-mode-chip active" data-timer-mode="stopwatch">Stopky</button>
             <button type="button" class="chip timer-mode-chip" data-timer-mode="countdown">Odpočet</button>
@@ -403,7 +407,7 @@
         </div>
 
         <div class="sets-header">
-          <span class="muted">Série (zaškrtni <strong>W</strong> u zahřívací série · cap 110 XP/d)</span>
+          <span class="muted">Série (zaškrtni <strong>W</strong> u zahřívací série · cap 80 XP/d)</span>
         </div>
         <div id="wo-sets-container" class="sets-list"></div>
         <datalist id="exercise-datalist"></datalist>
@@ -465,7 +469,7 @@
       <section class="card stack-sm">
         <div class="section-head">
           <h2>Fotogalerie & Progres</h2>
-          <span class="muted">+20 XP (max 1 bodovaná fotka za týden)</span>
+          <span class="muted">+15 XP (max 1 bodovaná fotka za týden)</span>
         </div>
 
         <form id="photo-upload-form" class="photo-upload-grid">
@@ -556,7 +560,7 @@
           </select>
         </label>
         <label class="field">
-          <span>Termín</span>
+          <span>Deadline</span>
           <input id="edit-due" type="date">
         </label>
       </div>
@@ -586,7 +590,7 @@
           <input id="focus-log-date" type="date" required>
         </label>
         <label class="field">
-          <span>Minuty (cap 300 XP/den)</span>
+          <span>Minuty (cap 120 XP/den)</span>
           <input id="focus-log-minutes" type="number" min="1" max="1440" required>
         </label>
       </div>

@@ -2029,3 +2029,107 @@ select:focus {
     grid-column: span 1;
   }
 }
+/* === URGENCE DEADLINŮ (SVÍCENÍ) & ARCHIV DLOUHODOBÝCH AKTIVIT === */
+.habit-text-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.habit-sub-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.btn-finish-habit {
+  background: rgba(16, 185, 129, 0.14);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.38);
+  border-radius: 7px;
+  padding: 5px 9px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.btn-finish-habit:hover {
+  background: rgba(16, 185, 129, 0.28);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-xs {
+  padding: 4px 8px;
+  font-size: 0.76rem;
+}
+
+.habits-archive {
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+}
+
+.habits-archive-summary {
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--muted);
+  list-style: none;
+}
+
+.habits-archive-summary::-webkit-details-marker {
+  display: none;
+}
+
+.habits-archive-summary:hover {
+  color: var(--text);
+}
+
+/* Svícení podle blízkosti deadlinu (Úkoly i Dlouhodobé aktivity) */
+.urgency-near {
+  border-color: rgba(250, 204, 21, 0.45) !important;
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.05), rgba(17, 22, 34, 0.88)) !important;
+}
+
+.urgency-soon {
+  border-color: rgba(245, 158, 11, 0.75) !important;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(17, 22, 34, 0.9)) !important;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.22);
+}
+
+.urgency-today {
+  border-color: #ff6b35 !important;
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.16), rgba(17, 22, 34, 0.92)) !important;
+  animation: pulse-today 2.2s ease-in-out infinite;
+}
+
+.urgency-overdue {
+  border-color: #ff4757 !important;
+  background: linear-gradient(135deg, rgba(255, 71, 87, 0.2), rgba(24, 12, 18, 0.92)) !important;
+  animation: pulse-overdue 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse-today {
+  0%, 100% { box-shadow: 0 0 12px rgba(255, 107, 53, 0.28); }
+  50% { box-shadow: 0 0 24px rgba(255, 107, 53, 0.6); }
+}
+
+@keyframes pulse-overdue {
+  0%, 100% { box-shadow: 0 0 14px rgba(255, 71, 87, 0.35); }
+  50% { box-shadow: 0 0 28px rgba(255, 71, 87, 0.72); }
+}
+
+@media (max-width: 600px) {
+  .habit-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .habit-right {
+    justify-content: flex-end;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.06);
+  }
+}

@@ -97,9 +97,7 @@ window.ProgressModule = (() => {
   function daysDiffUTC(dateStrA, dateStrB) {
     const [y1, m1, d1] = dateStrA.split('-').map(Number);
     const [y2, m2, d2] = dateStrB.split('-').map(Number);
-    const t1 = Date.UTC(y1, m1 - 1, d1);
-    const t2 = Date.UTC(y2, m2 - 1, d2);
-    return Math.round((t2 - t1) / 86400000);
+    return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
   }
 
   function getISOWeekKey(dateStr) {
@@ -118,9 +116,7 @@ window.ProgressModule = (() => {
 
   function totalXpForLevel(targetLevel) {
     let sum = 0;
-    for (let l = 1; l < targetLevel; l++) {
-      sum += xpForLevel(l);
-    }
+    for (let l = 1; l < targetLevel; l++) sum += xpForLevel(l);
     return sum;
   }
 
@@ -256,7 +252,7 @@ window.ProgressModule = (() => {
         db.from('user_photos').select('*').order('photo_date', { ascending: false }).order('created_at', { ascending: false }).limit(80),
         db.from('focus_skills').select('id, milestones'),
         db.from('focus_sessions').select('session_date, minutes').limit(5000),
-        db.from('habits').select('id, xp_value'),
+        db.from('habits').select('id, is_completed, completed_at'),
         db.from('habit_logs').select('habit_id, log_date').limit(5000),
       ]);
 
@@ -292,7 +288,6 @@ window.ProgressModule = (() => {
       habitLogs,
     } = dataCache;
 
-    // Denní kbelíky pro férové stropy
     const daily = {};
     const ensureDay = (d) => {
       if (!d || d.length !== 10) return null;
@@ -304,15 +299,15 @@ window.ProgressModule = (() => {
           workoutSets: 0,
           hasWorkout: false,
           logXp: 0,
-          habitRaw: 0,
           habitDoneCount: 0,
+          graduationXp: 0,
           photoXp: 0,
         };
       }
       return daily[d];
     };
 
-    // 1. Úkoly & podúkoly (strop 100 XP / den)
+    // 1. Úkoly: VŽDY rovných 10 XP (priorita nepřidává nic!), podúkol 2 XP. Strop 50 XP / den.
     let completedTodos = 0;
     let completedHighTodos = 0;
     let completedSubtasks = 0;
@@ -324,17 +319,16 @@ window.ProgressModule = (() => {
       const doneSubs = subs.filter((s) => s.done).length;
       if (doneSubs > 0) {
         completedSubtasks += doneSubs;
-        if (bucket) bucket.todoRaw += doneSubs * 4;
+        if (bucket) bucket.todoRaw += doneSubs * 2;
       }
       if (t.is_completed) {
         completedTodos++;
         if (t.priority === 'high') completedHighTodos++;
-        const pts = t.priority === 'high' ? 25 : t.priority === 'low' ? 10 : 15;
-        if (bucket) bucket.todoRaw += pts;
+        if (bucket) bucket.todoRaw += 10;
       }
     });
 
-    // 2. Denní log Tělo & Strava (max 75 XP / den)
+    // 2. Denní log Tělo & Strava (max 55 XP / den)
     const targetProtein = Number(profile?.target_protein_g || 160);
     const targetSteps = Number(profile?.target_steps || 10000);
     let totalSteps = 0;
@@ -343,26 +337,26 @@ window.ProgressModule = (() => {
     let goodSleepDays = 0;
 
     logs.forEach((l) => {
-      let pts = 20;
+      let pts = 15;
       if (l.protein_g != null && Number(l.protein_g) >= targetProtein) {
-        pts += 20;
+        pts += 15;
         proteinHitDays++;
       }
       if (l.steps != null) {
         const st = Number(l.steps);
         totalSteps += st;
         if (st > maxStepsDay) maxStepsDay = st;
-        if (st >= targetSteps) pts += 20;
+        if (st >= targetSteps) pts += 15;
       }
       if (l.sleep_hours != null && Number(l.sleep_hours) >= 7.0) {
-        pts += 15;
+        pts += 10;
         if (Number(l.sleep_hours) >= 7.5) goodSleepDays++;
       }
       const bucket = ensureDay(l.log_date);
-      if (bucket) bucket.logXp = Math.min(75, pts);
+      if (bucket) bucket.logXp = Math.min(55, pts);
     });
 
-    // 3. Tréninky & série (max 110 XP / den)
+    // 3. Tréninky (40 XP + 2 XP/série, max 80 XP / den)
     const workingSetsByWo = {};
     let workingSetsCount = 0;
     let totalTonnage = 0;
@@ -389,7 +383,7 @@ window.ProgressModule = (() => {
       }
     });
 
-    // 4. Fokus (diminishing returns po 4 h, max 300 XP / den)
+    // 4. Fokus (0.5 XP/min do 3 h, pak 0.25 XP/min, max 120 XP / den)
     let totalFocusMin = 0;
     focusSessions.forEach((fs) => {
       const mins = Number(fs.minutes) || 0;
@@ -398,7 +392,7 @@ window.ProgressModule = (() => {
       if (bucket) bucket.focusMin += mins;
     });
 
-    // 5. Milníky dlouhodobého učení (max 2 / den = 100 XP)
+    // 5. Milníky (25 XP, max 2 / den = 50 XP / den)
     let completedMilestones = 0;
     focusSkills.forEach((sk) => {
       const ms = Array.isArray(sk.milestones) ? sk.milestones : [];
@@ -411,18 +405,30 @@ window.ProgressModule = (() => {
       });
     });
 
-    // 6. Opakované rutiny / Habits (max 80 XP + 20 XP combo / den)
-    const habitXpMap = new Map(habits.map((h) => [h.id, Number(h.xp_value) || 15]));
-    const activeHabitsCount = habits.length;
+    // 6. Dlouhodobé aktivity & Rutiny (vždy 10 XP/den, max 50 XP + 15 XP combo)
+    const daysPerHabit = {};
     habitLogs.forEach((hl) => {
+      if (!daysPerHabit[hl.habit_id]) daysPerHabit[hl.habit_id] = new Set();
+      daysPerHabit[hl.habit_id].add(hl.log_date);
       const bucket = ensureDay(hl.log_date);
-      if (bucket) {
-        bucket.habitRaw += habitXpMap.get(hl.habit_id) || 15;
-        bucket.habitDoneCount++;
-      }
+      if (bucket) bucket.habitDoneCount++;
     });
 
-    // 7. Fotky (max 1 bodovaná fotka za ISO týden = +20 XP)
+    // Bonus za „Naučeno / Hotovo navždy“: 5 XP za každý reálně odpracovaný den (min. 5 dnů, max 150 XP)
+    const activeHabitsCount = habits.filter((h) => !h.is_completed).length;
+    let graduatedHabitsCount = 0;
+    habits.forEach((h) => {
+      if (!h.is_completed) return;
+      graduatedHabitsCount++;
+      const uniqueDays = daysPerHabit[h.id]?.size || 0;
+      if (uniqueDays < 5) return; // Anti-abuse: méně než 5 dnů = 0 XP
+      const gradXp = Math.min(150, uniqueDays * 5);
+      const dStr = (h.completed_at || '').slice(0, 10) || toDateStr(new Date());
+      const bucket = ensureDay(dStr);
+      if (bucket) bucket.graduationXp += gradXp;
+    });
+
+    // 7. Fotky (max 1× za týden = 15 XP)
     const creditedPhotoWeeks = new Set();
     [...photos]
       .sort((a, b) => a.photo_date.localeCompare(b.photo_date))
@@ -431,15 +437,14 @@ window.ProgressModule = (() => {
         if (creditedPhotoWeeks.has(wk)) return;
         creditedPhotoWeeks.add(wk);
         const bucket = ensureDay(p.photo_date);
-        if (bucket) bucket.photoXp += 20;
+        if (bucket) bucket.photoXp += 15;
       });
 
-    // Vyhodnocení dnů chronologicky + Streak multiplikátor (1.00× až 1.25×)
+    // Chronologické sečtení dnů + Streak multiplikátor (1.00× až 1.20×)
     const sortedDates = Object.keys(daily).sort();
     const xpByDate = {};
     let todoXpTotal = 0;
     let focusXpTotal = 0;
-    let milestoneXpTotal = 0;
     let workoutXpTotal = 0;
     let logXpTotal = 0;
     let habitXpTotal = 0;
@@ -452,17 +457,17 @@ window.ProgressModule = (() => {
 
     sortedDates.forEach((d) => {
       const b = daily[d];
-      const dTodo = Math.min(100, b.todoRaw);
+      const dTodo = Math.min(50, b.todoRaw);
       const dFocus =
-        b.focusMin <= 240
-          ? b.focusMin
-          : Math.min(300, Math.round(240 + (b.focusMin - 240) * 0.25));
-      const dMilestone = Math.min(2, b.milestones) * 50;
-      const dWorkout = b.hasWorkout ? Math.min(110, 45 + b.workoutSets * 3) : 0;
+        b.focusMin <= 180
+          ? Math.round(b.focusMin * 0.5)
+          : Math.min(120, Math.round(90 + (b.focusMin - 180) * 0.25));
+      const dMilestone = Math.min(2, b.milestones) * 25;
+      const dWorkout = b.hasWorkout ? Math.min(80, 40 + b.workoutSets * 2) : 0;
       const dLog = b.logXp;
-      const dHabitBase = Math.min(80, b.habitRaw);
-      const dHabitCombo = activeHabitsCount >= 2 && b.habitDoneCount >= activeHabitsCount ? 20 : 0;
-      const dHabit = dHabitBase + dHabitCombo;
+      const dHabitBase = Math.min(50, b.habitDoneCount * 10);
+      const dHabitCombo = activeHabitsCount >= 3 && b.habitDoneCount >= activeHabitsCount ? 15 : 0;
+      const dHabit = dHabitBase + dHabitCombo + b.graduationXp;
       const dPhoto = b.photoXp;
 
       const baseSum = dTodo + dFocus + dMilestone + dWorkout + dLog + dHabit + dPhoto;
@@ -475,12 +480,11 @@ window.ProgressModule = (() => {
       }
       prevActiveDate = d;
 
-      const mult = 1 + Math.min(0.25, Math.floor(runningStreak / 3) * 0.05);
+      const mult = 1 + Math.min(0.2, Math.floor(runningStreak / 3) * 0.04);
       const finalDayXp = Math.round(baseSum * mult);
 
       todoXpTotal += dTodo;
-      focusXpTotal += dFocus;
-      milestoneXpTotal += dMilestone;
+      focusXpTotal += dFocus + dMilestone;
       workoutXpTotal += dWorkout;
       logXpTotal += dLog;
       habitXpTotal += dHabit;
@@ -490,12 +494,11 @@ window.ProgressModule = (() => {
       xpByDate[d] = finalDayXp;
     });
 
-    // Aktuální globální streak (z jakékoliv aktivity v appce)
     const todayStr = toDateStr(new Date());
     let globalActiveStreak = 0;
     if (prevActiveDate && daysDiffUTC(prevActiveDate, todayStr) <= 1) {
       globalActiveStreak = runningStreak;
-      currentMultiplier = 1 + Math.min(0.25, Math.floor(globalActiveStreak / 3) * 0.05);
+      currentMultiplier = 1 + Math.min(0.2, Math.floor(globalActiveStreak / 3) * 0.04);
     }
 
     const totalXp = Object.values(xpByDate).reduce((a, b) => a + b, 0);
@@ -521,7 +524,7 @@ window.ProgressModule = (() => {
     );
     const focusScore = Math.min(
       100,
-      Math.round(completedTodos * 3 + completedMilestones * 8 + (totalFocusMin / 60) * 2.5)
+      Math.round(completedTodos * 3 + completedMilestones * 6 + graduatedHabitsCount * 10 + (totalFocusMin / 60) * 2.5)
     );
     const avgSleep = gymStats.avgSleep30 || 0;
     const sleepPart = avgSleep ? Math.min(75, Math.max(0, ((avgSleep - 4.5) / 3.5) * 75)) : 0;
@@ -578,11 +581,12 @@ window.ProgressModule = (() => {
       logXp: logXpTotal,
       workoutXp: workoutXpTotal,
       photoXp: photoXpTotal,
-      focusXp: focusXpTotal + milestoneXpTotal,
+      focusXp: focusXpTotal,
       habitXp: habitXpTotal,
       bonusStreakXp: bonusStreakXpTotal,
       totalFocusMin,
       completedMilestones,
+      graduatedHabitsCount,
       totalTonnage,
       completedTodos,
       completedSubtasks,
@@ -657,9 +661,7 @@ window.ProgressModule = (() => {
           ? `ZÁKLADNÍ CYKLUS (P0 · LVL 1–60)`
           : `ASCENSION ${p} (P${p} · LVL ${startLvl}–${endLvl})`;
     }
-    if (el.ranksPrevBtn) {
-      el.ranksPrevBtn.disabled = p <= 0;
-    }
+    if (el.ranksPrevBtn) el.ranksPrevBtn.disabled = p <= 0;
 
     if (el.ranksHero) {
       el.ranksHero.innerHTML = `
@@ -726,9 +728,9 @@ window.ProgressModule = (() => {
       el.rankShowcase.innerHTML = `
         <div class="rank-showcase-emblem">${buildRankEmblemSVG(levelInfo.rank, 76)}</div>
         <div class="rank-showcase-info">
-          <div class="rank-showcase-tag mono">FÉROVÝ XP SYSTÉM · MULTIPLIKÁTOR ${r.currentMultiplier.toFixed(2)}×</div>
+          <div class="rank-showcase-tag mono">ANTI-ABUSE XP · MULTIPLIKÁTOR ${r.currentMultiplier.toFixed(2)}×</div>
           <div class="rank-showcase-name" style="color: ${levelInfo.rank.color}">${levelInfo.rank.fullName}</div>
-          <div class="muted">Další povýšení na <strong>${levelInfo.nextRank.fullName}</strong> od levelu ${levelInfo.nextRankLevel} · Celkem ${levelInfo.totalXp.toLocaleString('cs-CZ')} XP (+${r.bonusStreakXp.toLocaleString('cs-CZ')} XP ze streak bonusu)</div>
+          <div class="muted">Další povýšení na <strong>${levelInfo.nextRank.fullName}</strong> od levelu ${levelInfo.nextRankLevel} · Celkem ${levelInfo.totalXp.toLocaleString('cs-CZ')} XP (+${r.bonusStreakXp.toLocaleString('cs-CZ')} XP streak bonus)</div>
         </div>
       `;
     }
@@ -738,10 +740,10 @@ window.ProgressModule = (() => {
       const focusHours = (r.totalFocusMin / 60).toFixed(1);
       el.progKpiGrid.innerHTML = [
         `<div class="kpi-card kpi-glow"><span class="kpi-label">Achievementy</span><span class="kpi-value kpi-accent mono">${unlockedCnt} / ${r.achievements.length}</span><span class="kpi-sub">${Math.round((unlockedCnt / Math.max(1, r.achievements.length)) * 100)} % dokončeno</span></div>`,
-        `<div class="kpi-card"><span class="kpi-label">Fokus & Milníky</span><span class="kpi-value mono">${r.focusXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">${focusHours} h · ${r.completedMilestones} milníků</span></div>`,
-        `<div class="kpi-card"><span class="kpi-label">Rutiny (Habits)</span><span class="kpi-value mono">${r.habitXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Denní cap 80 + 20 combo</span></div>`,
-        `<div class="kpi-card"><span class="kpi-label">Gym & Strava</span><span class="kpi-value mono">${(r.workoutXp + r.logXp).toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Tonáž: ${Math.round(r.totalTonnage).toLocaleString('cs-CZ')} kg</span></div>`,
-        `<div class="kpi-card"><span class="kpi-label">Úkoly & Fotky</span><span class="kpi-value mono">${(r.todoXp + r.photoXp).toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Cap 100 XP/d úkoly · 1 fotka/týd</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">Fokus & Milníky</span><span class="kpi-value mono">${r.focusXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">${focusHours} h · cap 120 XP/d</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">Dlouhodobé & Rutiny</span><span class="kpi-value mono">${r.habitXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">${r.graduatedHabitsCount} naučeno · cap 50+15/d</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">Gym & Strava</span><span class="kpi-value mono">${(r.workoutXp + r.logXp).toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Cap 80 gym + 55 strava/d</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">Úkoly & Fotky</span><span class="kpi-value mono">${(r.todoXp + r.photoXp).toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Rovných 10 XP/úkol · cap 50/d</span></div>`,
       ].join('');
     }
 
@@ -831,7 +833,7 @@ window.ProgressModule = (() => {
         labels: r.xpTimeline.map((p) => p.label),
         datasets: [
           {
-            label: 'Denní XP (s capy a bonusem)',
+            label: 'Denní XP (s anti-abuse limity)',
             data: r.xpTimeline.map((p) => p.daily),
             backgroundColor: 'rgba(139, 92, 246, 0.65)',
             borderRadius: 4,
@@ -935,7 +937,7 @@ window.ProgressModule = (() => {
 
           el.photoFile.value = '';
           el.photoCaption.value = '';
-          window.appShowToast('Fotka nahrána (max 1× za týden +20 XP).');
+          window.appShowToast('Fotka nahrána (max 1× za týden +15 XP).');
           await loadAll();
           window.CalendarModule?.refresh();
         } catch (err) {
