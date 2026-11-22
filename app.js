@@ -1,4 +1,4 @@
-const SUPABASE_URL = 'https://elmqhmzdklqzmksqosod.supabase.co/rest/v1/';
+const SUPABASE_URL = 'https://elmqhmzdklqzmksqosod.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_iA_J8y6ouyj67UJzZPOZfQ_KdqBCjY3';
 
 const PRIORITY_WEIGHT = { high: 0, medium: 1, low: 2 };
