@@ -10,6 +10,9 @@ window.ProgressModule = (() => {
     photos: [],
   };
   let photoFilter = 'all';
+  let achCatFilter = 'all';
+  let achStatusFilter = 'all';
+  let viewedPrestige = 0;
   let charts = { radar: null, xp: null };
   let initializedListeners = false;
 
@@ -32,6 +35,13 @@ window.ProgressModule = (() => {
     jidlo: 'Jídlo',
     ostatni: 'Ostatní',
   };
+  const RARITY_LABEL = {
+    common: 'COMMON',
+    rare: 'RARE',
+    epic: 'EPIC',
+    legendary: 'LEGENDARY',
+    mythic: 'MYTHIC',
+  };
 
   const el = {};
 
@@ -47,6 +57,8 @@ window.ProgressModule = (() => {
     el.progKpiGrid = document.getElementById('prog-kpi-grid');
     el.achievementsGrid = document.getElementById('achievements-grid');
     el.achievementsCount = document.getElementById('achievements-count');
+    el.achCatBtns = document.querySelectorAll('.ach-cat-chip');
+    el.achStatusBtns = document.querySelectorAll('.ach-status-chip');
 
     el.photoForm = document.getElementById('photo-upload-form');
     el.photoFile = document.getElementById('photo-file-input');
@@ -56,6 +68,14 @@ window.ProgressModule = (() => {
     el.photoSubmitBtn = document.getElementById('photo-submit-btn');
     el.photoFilterBtns = document.querySelectorAll('.photo-filter-chip');
     el.photoGallery = document.getElementById('photo-gallery-grid');
+
+    // Záložka Ranky
+    el.ranksHero = document.getElementById('ranks-hero');
+    el.ranksPrestigeLabel = document.getElementById('ranks-prestige-label');
+    el.ranksPrevBtn = document.getElementById('ranks-prev-prestige');
+    el.ranksCurrBtn = document.getElementById('ranks-curr-prestige');
+    el.ranksNextBtn = document.getElementById('ranks-next-prestige');
+    el.ranksGrid = document.getElementById('ranks-catalog-grid');
   }
 
   function escapeHtml(text) {
@@ -75,7 +95,14 @@ window.ProgressModule = (() => {
     return Math.round(140 * Math.pow(level, 1.22));
   }
 
-  // Nekonečný výpočet ranku (10 tierů × 3 divize × 2 levely = 60 levelů na 1 Prestige cyklus -> P1, P2, ... ∞)
+  function totalXpForLevel(targetLevel) {
+    let sum = 0;
+    for (let l = 1; l < targetLevel; l++) {
+      sum += xpForLevel(l);
+    }
+    return sum;
+  }
+
   function getInfiniteRank(level) {
     const idx = Math.max(0, level - 1);
     const prestige = Math.floor(idx / 60);
@@ -116,7 +143,7 @@ window.ProgressModule = (() => {
 
     const prestigeBadge =
       rank.prestige > 0
-        ? `<circle cx="52" cy="14" r="9" fill="#07090f" stroke="${c}" stroke-width="2"/><text x="52" y="17.5" text-anchor="middle" fill="#fff" font-size="9" font-family="JetBrains Mono, monospace" font-weight="700">P${rank.prestige}</text>`
+        ? `<circle cx="52" cy="14" r="9" fill="#07090f" stroke="${c}" stroke-width="2"/><text x="52" y="17.5" text-anchor="middle" fill="#fff" font-size="8.5" font-family="JetBrains Mono, monospace" font-weight="700">P${rank.prestige}</text>`
         : '';
 
     return `
@@ -200,11 +227,11 @@ window.ProgressModule = (() => {
 
     const [todosRes, logsRes, woRes, setsRes, profRes, photosRes] = await Promise.all([
       db.from('todos').select('id, is_completed, priority, subtasks, created_at'),
-      db.from('daily_logs').select('*').order('log_date', { ascending: true }).limit(365),
-      db.from('workouts').select('*').order('workout_date', { ascending: true }).limit(365),
-      db.from('workout_sets').select('*').limit(4000),
+      db.from('daily_logs').select('*').order('log_date', { ascending: true }).limit(500),
+      db.from('workouts').select('*').order('workout_date', { ascending: true }).limit(500),
+      db.from('workout_sets').select('*').limit(10000),
       db.from('fitness_profile').select('*').eq('user_id', user.id).maybeSingle(),
-      db.from('user_photos').select('*').order('photo_date', { ascending: false }).order('created_at', { ascending: false }).limit(60),
+      db.from('user_photos').select('*').order('photo_date', { ascending: false }).order('created_at', { ascending: false }).limit(80),
     ]);
 
     dataCache = {
@@ -219,6 +246,8 @@ window.ProgressModule = (() => {
     renderAll();
   }
 
+  let lastComputed = null;
+
   function computeRPG() {
     const { todos, logs, workouts, sets, profile, photos } = dataCache;
     const xpByDate = {};
@@ -227,10 +256,11 @@ window.ProgressModule = (() => {
       xpByDate[dateStr] = (xpByDate[dateStr] || 0) + amount;
     };
 
-    // 1. XP za splněné úkoly a podúkoly
     let todoXp = 0;
     let completedTodos = 0;
+    let completedHighTodos = 0;
     let completedSubtasks = 0;
+
     todos.forEach((t) => {
       const dateStr = (t.created_at || '').slice(0, 10);
       const subs = Array.isArray(t.subtasks) ? t.subtasks : [];
@@ -243,34 +273,51 @@ window.ProgressModule = (() => {
       }
       if (t.is_completed) {
         completedTodos++;
+        if (t.priority === 'high') completedHighTodos++;
         const pts = t.priority === 'high' ? 40 : t.priority === 'low' ? 15 : 25;
         todoXp += pts;
         addDailyXp(dateStr, pts);
       }
     });
 
-    // 2. XP za denní záznamy
     let logXp = 0;
     const targetProtein = Number(profile?.target_protein_g || 160);
     const targetSteps = Number(profile?.target_steps || 10000);
 
+    let totalSteps = 0;
+    let maxStepsDay = 0;
+    let proteinHitDays = 0;
+    let goodSleepDays = 0;
+
     logs.forEach((l) => {
       let pts = 30;
-      if (l.protein_g != null && Number(l.protein_g) >= targetProtein) pts += 20;
-      if (l.steps != null && Number(l.steps) >= targetSteps) pts += 20;
+      if (l.protein_g != null && Number(l.protein_g) >= targetProtein) {
+        pts += 20;
+        proteinHitDays++;
+      }
+      if (l.steps != null) {
+        const st = Number(l.steps);
+        totalSteps += st;
+        if (st > maxStepsDay) maxStepsDay = st;
+        if (st >= targetSteps) pts += 20;
+      }
+      if (l.sleep_hours != null && Number(l.sleep_hours) >= 7.5) {
+        goodSleepDays++;
+      }
       logXp += pts;
       addDailyXp(l.log_date, pts);
     });
 
-    // 3. XP za tréninky a série
     let workoutXp = 0;
     const workingSetsByWo = {};
+    let workingSetsCount = 0;
     let totalTonnage = 0;
     let maxWeightLifted = 0;
     let maxE1RM = 0;
 
     sets.forEach((s) => {
       if (s.is_warmup) return;
+      workingSetsCount++;
       const w = Number(s.weight_kg);
       const r = Number(s.reps);
       totalTonnage += w * r;
@@ -286,7 +333,6 @@ window.ProgressModule = (() => {
       addDailyXp(w.workout_date, pts);
     });
 
-    // 4. XP za fotky progresu (+15 XP za fotku)
     let photoXp = 0;
     photos.forEach((p) => {
       photoXp += 15;
@@ -301,19 +347,17 @@ window.ProgressModule = (() => {
       : { currentStreak: 0, longestStreak: 0 };
 
     const latestWeight = gymStats.avgWeight7 || gymStats.currentWeight || 80;
-    const relStr = maxE1RM ? maxE1RM / latestWeight : 0;
-    const strScore = Math.min(100, Math.round(relStr * 55 + Math.min(25, workouts.length * 2.5)));
+    const maxRelStrength = maxE1RM && latestWeight ? maxE1RM / latestWeight : 0;
 
+    const strScore = Math.min(100, Math.round(maxRelStrength * 55 + Math.min(25, workouts.length * 2.5)));
     const avgSteps = gymStats.avgSteps30 || 0;
     const endScore = Math.min(
       100,
       Math.round((avgSteps / Math.max(targetSteps, 8000)) * 80 + Math.min(20, (gymStats.cardioDays30 || 0) * 5))
     );
-
     const proteinPct = gymStats.proteinHitPct ?? 0;
     const disScore = Math.min(100, Math.round(Math.min(50, gymStats.currentStreak * 5) + proteinPct * 0.5));
     const focusScore = Math.min(100, Math.round(Math.min(100, completedTodos * 5 + completedSubtasks * 1.5)));
-
     const avgSleep = gymStats.avgSleep30 || 0;
     const sleepPart = avgSleep ? Math.min(75, Math.max(0, ((avgSleep - 4.5) / 3.5) * 75)) : 0;
     const restPart = gymStats.restDays30 ? Math.min(25, gymStats.restDays30 * 5) : 0;
@@ -340,19 +384,29 @@ window.ProgressModule = (() => {
       });
     }
 
-    const achievements = [
-      { icon: '⚔️', title: 'První krev', desc: 'Zapiš svůj první trénink', unlocked: workouts.length >= 1 },
-      { icon: '🔥', title: 'Týdenní série', desc: 'Dosáhni 7denního streaku', unlocked: gymStats.longestStreak >= 7 },
-      { icon: '🏋️', title: '100 kg Club', desc: 'Zvedni v sérii alespoň 100 kg', unlocked: maxWeightLifted >= 100 },
-      { icon: '📦', title: '10 tun železa', desc: 'Celková tonáž 10 000+ kg', unlocked: totalTonnage >= 10000 },
-      { icon: '👟', title: '10k Walker', desc: '30d průměr kroků ≥ 10 000', unlocked: avgSteps >= 10000 },
-      { icon: '🥩', title: 'Protein Sniper', desc: 'Bílkoviny ≥ 80 % dnů (min. 5d)', unlocked: (gymStats.proteinHitPct || 0) >= 80 && logs.length >= 5 },
-      { icon: '✅', title: 'Exekutor', desc: 'Splň 15 úkolů nebo 30 podúkolů', unlocked: completedTodos >= 15 || completedSubtasks >= 30 },
-      { icon: '📸', title: 'Vizuální log', desc: 'Nahraj alespoň 3 fotky progresu', unlocked: photos.length >= 3 },
-      { icon: '👑', title: 'Ascension I', desc: 'Překonej Level 60 a vstoupíš do P1', unlocked: levelInfo.level >= 61 },
-    ];
+    const achievements = window.AchievementsEngine
+      ? window.AchievementsEngine.evaluate({
+          workoutCount: workouts.length,
+          totalTonnage,
+          workingSetsCount,
+          maxWeightLifted,
+          maxE1RM,
+          maxRelStrength,
+          completedTodos,
+          completedSubtasks,
+          completedHighTodos,
+          totalLogDays: logs.length,
+          proteinHitDays,
+          goodSleepDays,
+          longestStreak: gymStats.longestStreak || 0,
+          totalSteps,
+          maxStepsDay,
+          photoCount: photos.length,
+          level: levelInfo.level,
+        })
+      : [];
 
-    return {
+    lastComputed = {
       levelInfo,
       streak: gymStats.currentStreak || 0,
       todoXp,
@@ -372,13 +426,119 @@ window.ProgressModule = (() => {
       xpTimeline,
       achievements,
     };
+
+    return lastComputed;
+  }
+
+  function renderAchievements() {
+    if (!el.achievementsGrid || !lastComputed) return;
+    const all = lastComputed.achievements;
+    const totalUnlocked = all.filter((a) => a.unlocked).length;
+    el.achievementsCount.textContent = `${totalUnlocked} / ${all.length} odemčeno`;
+
+    const filtered = all.filter((a) => {
+      if (achCatFilter !== 'all' && a.cat !== achCatFilter) return false;
+      if (achStatusFilter === 'unlocked' && !a.unlocked) return false;
+      if (achStatusFilter === 'locked' && a.unlocked) return false;
+      return true;
+    });
+
+    if (!filtered.length) {
+      el.achievementsGrid.innerHTML = '<p class="empty-state">Pro zvolený filtr tu zatím nic není.</p>';
+      return;
+    }
+
+    el.achievementsGrid.innerHTML = filtered
+      .map(
+        (a) => `
+        <div class="ach-card rarity-${a.rarity} ${a.unlocked ? 'unlocked' : 'locked'}">
+          <div class="ach-top">
+            <div class="ach-icon">${a.icon}</div>
+            <div class="ach-body">
+              <div class="ach-title-row">
+                <span class="ach-title">${a.title}</span>
+                <span class="rarity-pill pill-${a.rarity}">${RARITY_LABEL[a.rarity]}</span>
+              </div>
+              <div class="ach-desc">${a.desc}</div>
+            </div>
+          </div>
+          <div class="ach-progress-wrap">
+            <div class="ach-progress-track">
+              <div class="ach-progress-fill" style="width: ${a.pct}%;"></div>
+            </div>
+            <span class="ach-progress-txt mono">${a.unlocked ? 'DONE ✓' : a.progressText}</span>
+          </div>
+        </div>
+      `
+      )
+      .join('');
+  }
+
+  function renderRanksCatalog() {
+    if (!el.ranksGrid || !lastComputed) return;
+    const { levelInfo } = lastComputed;
+    const p = viewedPrestige;
+    const startLvl = p * 60 + 1;
+    const endLvl = startLvl + 59;
+
+    if (el.ranksPrestigeLabel) {
+      el.ranksPrestigeLabel.textContent =
+        p === 0
+          ? `ZÁKLADNÍ CYKLUS (P0 · LVL 1–60)`
+          : `ASCENSION ${p} (P${p} · LVL ${startLvl}–${endLvl})`;
+    }
+    if (el.ranksPrevBtn) {
+      el.ranksPrevBtn.disabled = p <= 0;
+    }
+
+    if (el.ranksHero) {
+      el.ranksHero.innerHTML = `
+        <div class="rank-showcase-emblem">${buildRankEmblemSVG(levelInfo.rank, 72)}</div>
+        <div class="rank-showcase-info">
+          <div class="rank-showcase-tag mono">TVŮJ AKTUÁLNÍ RANK · LEVEL ${levelInfo.level}</div>
+          <div class="rank-showcase-name" style="color: ${levelInfo.rank.color}">${levelInfo.rank.fullName}</div>
+          <div class="muted">
+            Každý rank trvá 2 levely (10 tierů × 3 divize = 60 levelů na jeden Ascension cyklus). Po Levelu 60 se otevírá nekonečné Ascension P1, P2, P3... ∞
+          </div>
+        </div>
+      `;
+    }
+
+    const cards = [];
+    for (let slot = 0; slot < 30; slot++) {
+      const minLvl = startLvl + slot * 2;
+      const maxLvl = minLvl + 1;
+      const rank = getInfiniteRank(minLvl);
+      const reqXp = totalXpForLevel(minLvl);
+
+      const isCurrent = levelInfo.level >= minLvl && levelInfo.level <= maxLvl;
+      const isReached = levelInfo.level > maxLvl;
+      const statusCls = isCurrent ? 'rank-current' : isReached ? 'rank-reached' : 'rank-locked';
+      const statusTxt = isCurrent
+        ? 'AKTUÁLNÍ'
+        : isReached
+        ? 'DOSAŽENO ✓'
+        : `CHYBÍ ${Math.max(0, reqXp - levelInfo.totalXp).toLocaleString('cs-CZ')} XP`;
+
+      cards.push(`
+        <div class="rank-tile ${statusCls}" style="--tier-color: ${rank.color}">
+          <div class="rank-tile-emblem">${buildRankEmblemSVG(rank, 54)}</div>
+          <div class="rank-tile-body">
+            <div class="rank-tile-name" style="color: ${rank.color}">${rank.shortName}</div>
+            <div class="rank-tile-lvl mono">LVL ${minLvl}–${maxLvl} · ${reqXp.toLocaleString('cs-CZ')} XP</div>
+            <div class="rank-tile-status mono">${statusTxt}</div>
+          </div>
+        </div>
+      `);
+    }
+
+    el.ranksGrid.innerHTML = cards.join('');
   }
 
   function renderAll() {
     const r = computeRPG();
     const { levelInfo } = r;
 
-    // Horní HUD
     if (el.hudEmblem) el.hudEmblem.innerHTML = buildRankEmblemSVG(levelInfo.rank, 38);
     if (el.hudLevel) el.hudLevel.textContent = `LVL ${levelInfo.level}`;
     if (el.hudRank) {
@@ -389,7 +549,6 @@ window.ProgressModule = (() => {
     if (el.hudXpFill) el.hudXpFill.style.width = `${levelInfo.pct}%`;
     if (el.hudStreak) el.hudStreak.textContent = `🔥 ${r.streak}d`;
 
-    // Velká karta aktuálního ranku v záložce Progres
     if (el.rankShowcase) {
       el.rankShowcase.innerHTML = `
         <div class="rank-showcase-emblem">${buildRankEmblemSVG(levelInfo.rank, 76)}</div>
@@ -401,36 +560,18 @@ window.ProgressModule = (() => {
       `;
     }
 
-    // KPI
     if (el.progKpiGrid) {
+      const unlockedCnt = r.achievements.filter((a) => a.unlocked).length;
       el.progKpiGrid.innerHTML = [
-        `<div class="kpi-card kpi-glow"><span class="kpi-label">XP z tréninků</span><span class="kpi-value kpi-accent mono">${r.workoutXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Tonáž: ${Math.round(r.totalTonnage).toLocaleString('cs-CZ')} kg</span></div>`,
+        `<div class="kpi-card kpi-glow"><span class="kpi-label">Achievementy</span><span class="kpi-value kpi-accent mono">${unlockedCnt} / ${r.achievements.length}</span><span class="kpi-sub">${Math.round((unlockedCnt / Math.max(1, r.achievements.length)) * 100)} % dokončeno</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">XP z tréninků</span><span class="kpi-value mono">${r.workoutXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Tonáž: ${Math.round(r.totalTonnage).toLocaleString('cs-CZ')} kg</span></div>`,
         `<div class="kpi-card"><span class="kpi-label">XP z těla & stravy</span><span class="kpi-value mono">${r.logXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Streak: ${r.streak} dní</span></div>`,
-        `<div class="kpi-card"><span class="kpi-label">XP z úkolů & podúkolů</span><span class="kpi-value mono">${r.todoXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">${r.completedTodos} úkolů · ${r.completedSubtasks} podúkolů</span></div>`,
-        `<div class="kpi-card"><span class="kpi-label">Fotky progresu</span><span class="kpi-value mono">${dataCache.photos.length} ks</span><span class="kpi-sub">+${r.photoXp} XP z vizuálního logu</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">XP z úkolů & fotek</span><span class="kpi-value mono">${(r.todoXp + r.photoXp).toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">${r.completedTodos} úkolů · ${r.completedSubtasks} podúkolů</span></div>`,
       ].join('');
     }
 
-    // Achievementy
-    if (el.achievementsGrid) {
-      const unlockedCount = r.achievements.filter((a) => a.unlocked).length;
-      el.achievementsCount.textContent = `${unlockedCount} / ${r.achievements.length} odemčeno`;
-      el.achievementsGrid.innerHTML = r.achievements
-        .map(
-          (a) => `
-          <div class="ach-card ${a.unlocked ? 'unlocked' : 'locked'}">
-            <div class="ach-icon">${a.icon}</div>
-            <div class="ach-body">
-              <div class="ach-title">${a.title}</div>
-              <div class="ach-desc">${a.desc}</div>
-            </div>
-            <span class="ach-status">${a.unlocked ? 'UNLOCKED' : 'LOCKED'}</span>
-          </div>
-        `
-        )
-        .join('');
-    }
-
+    renderAchievements();
+    renderRanksCatalog();
     renderPhotos();
     renderCharts(r);
   }
@@ -554,6 +695,46 @@ window.ProgressModule = (() => {
     if (initializedListeners) return;
     initializedListeners = true;
 
+    // Filtry achievementů
+    el.achCatBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        achCatFilter = btn.dataset.achCat;
+        el.achCatBtns.forEach((b) => b.classList.toggle('active', b === btn));
+        renderAchievements();
+      });
+    });
+
+    el.achStatusBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        achStatusFilter = btn.dataset.achStatus;
+        el.achStatusBtns.forEach((b) => b.classList.toggle('active', b === btn));
+        renderAchievements();
+      });
+    });
+
+    // Navigace nekonečnými Ascension cykly v záložce Ranky
+    if (el.ranksPrevBtn) {
+      el.ranksPrevBtn.addEventListener('click', () => {
+        if (viewedPrestige > 0) {
+          viewedPrestige--;
+          renderRanksCatalog();
+        }
+      });
+    }
+    if (el.ranksCurrBtn) {
+      el.ranksCurrBtn.addEventListener('click', () => {
+        viewedPrestige = lastComputed?.levelInfo?.rank?.prestige || 0;
+        renderRanksCatalog();
+      });
+    }
+    if (el.ranksNextBtn) {
+      el.ranksNextBtn.addEventListener('click', () => {
+        viewedPrestige++;
+        renderRanksCatalog();
+      });
+    }
+
+    // Nahrávání fotek
     if (el.photoForm) {
       el.photoForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -650,8 +831,17 @@ window.ProgressModule = (() => {
     onShow() {
       loadAll();
     },
+    onShowRanks() {
+      if (lastComputed) {
+        viewedPrestige = lastComputed.levelInfo.rank.prestige;
+        renderRanksCatalog();
+      } else {
+        loadAll();
+      }
+    },
     reset() {
       user = null;
+      lastComputed = null;
       dataCache = { todos: [], logs: [], workouts: [], sets: [], profile: null, photos: [] };
     },
   };

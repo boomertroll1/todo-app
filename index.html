@@ -20,6 +20,7 @@
   <script src="./gym.js" defer></script>
   <script src="./workouts.js" defer></script>
   <script src="./calendar.js" defer></script>
+  <script src="./achievements.js" defer></script>
   <script src="./progress.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
@@ -86,13 +87,14 @@
       <div id="hud-streak" class="hud-streak mono" title="Aktuální streak">🔥 0d</div>
     </section>
 
-    <!-- Přepínač modulů (5 záložek) -->
+    <!-- Přepínač modulů (6 záložek) -->
     <nav class="module-tabs" role="tablist">
       <button type="button" class="module-tab active" data-module="todos">Úkoly</button>
       <button type="button" class="module-tab" data-module="calendar">Kalendář</button>
       <button type="button" class="module-tab" data-module="gym">Tělo & Strava</button>
       <button type="button" class="module-tab" data-module="workouts">Tréninky</button>
       <button type="button" class="module-tab" data-module="progress">Progres</button>
+      <button type="button" class="module-tab" data-module="ranks">Ranky</button>
     </nav>
 
     <!-- MODUL 1: ÚKOLY + PODÚKOLY -->
@@ -109,7 +111,6 @@
           <button type="submit" class="btn btn-primary">Přidat</button>
         </div>
 
-        <!-- Kolonka pro podúkoly -->
         <div class="subtask-builder">
           <div class="subtask-input-row">
             <input id="subtask-draft-input" type="text" placeholder="+ Přidat podúkol (volitelné, +5 XP za každý)..." maxlength="140" autocomplete="off">
@@ -351,7 +352,7 @@
       </section>
     </section>
 
-    <!-- MODUL 5: PROGRES, NEKONEČNÉ RANKY & FOTKY -->
+    <!-- MODUL 5: PROGRES, ACHIEVEMENTY (143) & FOTKY -->
     <section id="module-progress" class="module-panel hidden">
       <section id="rank-showcase" class="card rank-showcase"></section>
 
@@ -399,12 +400,48 @@
         <div id="photo-gallery-grid" class="photo-gallery-grid"></div>
       </section>
 
+      <!-- 143 Achievementů s filtry -->
       <section class="card stack-sm">
         <div class="section-head">
           <h2>Achievementy</h2>
-          <span id="achievements-count" class="muted mono">0 / 9 odemčeno</span>
+          <span id="achievements-count" class="muted mono">0 / 143 odemčeno</span>
         </div>
+
+        <div class="ach-filters-bar">
+          <div class="filter-group">
+            <button type="button" class="chip ach-cat-chip active" data-ach-cat="all">Vše</button>
+            <button type="button" class="chip ach-cat-chip" data-ach-cat="gym">Gym & Síla</button>
+            <button type="button" class="chip ach-cat-chip" data-ach-cat="todos">Úkoly</button>
+            <button type="button" class="chip ach-cat-chip" data-ach-cat="body">Tělo & Strava</button>
+            <button type="button" class="chip ach-cat-chip" data-ach-cat="steps">Kroky & Streak</button>
+            <button type="button" class="chip ach-cat-chip" data-ach-cat="meta">Meta & Levely</button>
+          </div>
+          <div class="filter-group">
+            <button type="button" class="chip ach-status-chip active" data-ach-status="all">Všechny</button>
+            <button type="button" class="chip ach-status-chip" data-ach-status="unlocked">Odemčené</button>
+            <button type="button" class="chip ach-status-chip" data-ach-status="locked">Zamčené</button>
+          </div>
+        </div>
+
         <div id="achievements-grid" class="ach-grid"></div>
+      </section>
+    </section>
+
+    <!-- MODUL 6: KATALOG NEKONEČNÝCH RANKŮ -->
+    <section id="module-ranks" class="module-panel hidden">
+      <section id="ranks-hero" class="card rank-showcase"></section>
+
+      <section class="card stack-sm">
+        <div class="ranks-nav-bar">
+          <h2 id="ranks-prestige-label" class="mono">ZÁKLADNÍ CYKLUS (P0 · LVL 1–60)</h2>
+          <div class="ranks-nav-btns">
+            <button type="button" id="ranks-prev-prestige" class="btn btn-ghost">◀ Předchozí P</button>
+            <button type="button" id="ranks-curr-prestige" class="btn btn-ghost">Můj cyklus</button>
+            <button type="button" id="ranks-next-prestige" class="btn btn-primary">Další Ascension ▶</button>
+          </div>
+        </div>
+
+        <div id="ranks-catalog-grid" class="ranks-grid"></div>
       </section>
     </section>
   </main>

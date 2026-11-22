@@ -35,6 +35,7 @@ const el = {
   moduleGym: document.getElementById('module-gym'),
   moduleWorkouts: document.getElementById('module-workouts'),
   moduleProgress: document.getElementById('module-progress'),
+  moduleRanks: document.getElementById('module-ranks'),
 
   todoForm: document.getElementById('todo-form'),
   titleInput: document.getElementById('title-input'),
@@ -141,19 +142,22 @@ function switchModule(moduleName) {
   el.moduleGym.classList.toggle('hidden', moduleName !== 'gym');
   el.moduleWorkouts.classList.toggle('hidden', moduleName !== 'workouts');
   el.moduleProgress.classList.toggle('hidden', moduleName !== 'progress');
+  el.moduleRanks.classList.toggle('hidden', moduleName !== 'ranks');
 
   const titles = {
     todos: 'Úkoly',
     calendar: 'Kalendář',
     gym: 'Tělo & Strava',
     workouts: 'Tréninky & Síla',
-    progress: 'Progres & Ranky',
+    progress: 'Progres & Achievementy',
+    ranks: 'Katalog Ranků',
   };
   el.pageTitle.textContent = titles[moduleName] || 'Úkoly';
 
   if (moduleName === 'calendar') window.CalendarModule?.onShow();
   if (moduleName === 'workouts') window.WorkoutsModule?.onShow();
   if (moduleName === 'progress') window.ProgressModule?.onShow();
+  if (moduleName === 'ranks') window.ProgressModule?.onShowRanks();
 }
 
 el.moduleTabs.forEach((tab) => {
@@ -162,7 +166,7 @@ el.moduleTabs.forEach((tab) => {
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- Správa návrhových podúkolů při přidávání nového úkolu ---
+// --- Návrhové podúkoly při přidávání úkolu ---
 function renderDraftSubtasks() {
   el.subtaskDraftList.innerHTML = state.draftSubtasks
     .map(
@@ -198,7 +202,7 @@ el.subtaskDraftList.addEventListener('click', (e) => {
   renderDraftSubtasks();
 });
 
-// --- Správa podúkolů v editačním dialogu ---
+// --- Podúkoly v editačním dialogu ---
 function renderEditSubtasks() {
   el.editSubtaskList.innerHTML = state.editSubtasks
     .map(
@@ -385,7 +389,6 @@ el.todoForm.addEventListener('submit', async (e) => {
   const title = el.titleInput.value.trim();
   if (!title || !state.user) return;
 
-  // Pokud uživatel napsal text do pole podúkolu a zapomněl kliknout na "+ Krok", přidej ho taky
   if (el.subtaskDraftInput.value.trim()) {
     addDraftSubtask();
   }
@@ -423,7 +426,6 @@ el.todoList.addEventListener('click', async (e) => {
   const todo = state.todos.find((t) => t.id === id);
   if (!todo) return;
 
-  // Odškrtnutí podúkolu
   if (e.target.classList.contains('subtask-check')) {
     const idx = Number(e.target.dataset.subIdx);
     const updatedSubs = todo.subtasks.map((s, i) =>
@@ -445,7 +447,6 @@ el.todoList.addEventListener('click', async (e) => {
     return;
   }
 
-  // Odškrtnutí hlavního úkolu
   if (e.target.classList.contains('todo-checkbox')) {
     const nextValue = e.target.checked;
     todo.is_completed = nextValue;
@@ -462,7 +463,6 @@ el.todoList.addEventListener('click', async (e) => {
     return;
   }
 
-  // Otevření editace
   if (e.target.classList.contains('edit')) {
     el.editId.value = todo.id;
     el.editTitle.value = todo.title;
@@ -474,7 +474,6 @@ el.todoList.addEventListener('click', async (e) => {
     return;
   }
 
-  // Smazání úkolu
   if (e.target.classList.contains('delete')) {
     const backup = [...state.todos];
     state.todos = state.todos.filter((t) => t.id !== id);
