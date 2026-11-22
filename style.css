@@ -10,6 +10,7 @@
   --high: #ef4444;
   --medium: #f59e0b;
   --low: #10b981;
+  --purple: #8b5cf6;
   --radius: 12px;
 }
 
@@ -25,7 +26,7 @@ body {
   color: var(--text);
   line-height: 1.5;
   min-height: 100dvh;
-  padding: env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom));
+  padding: env(safe-area-inset-top) 16px calc(32px + env(safe-area-inset-bottom));
   -webkit-font-smoothing: antialiased;
 }
 
@@ -35,7 +36,7 @@ body {
 
 .muted {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
 
 .center-screen {
@@ -57,19 +58,29 @@ body {
   to { transform: rotate(360deg); }
 }
 
-.error-banner {
+.error-banner,
+.toast-banner {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
-  background: #7f1d1d;
-  color: #fecaca;
-  border: 1px solid #ef4444;
   padding: 10px 16px;
   border-radius: 10px;
   font-size: 0.9rem;
   max-width: 92vw;
   z-index: 100;
+}
+
+.error-banner {
+  background: #7f1d1d;
+  color: #fecaca;
+  border: 1px solid #ef4444;
+}
+
+.toast-banner {
+  background: #064e3b;
+  color: #a7f3d0;
+  border: 1px solid #10b981;
 }
 
 .auth-card {
@@ -96,11 +107,17 @@ body {
   gap: 14px;
 }
 
+.stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 0.85rem;
+  gap: 5px;
+  font-size: 0.82rem;
   color: var(--muted);
 }
 
@@ -108,13 +125,14 @@ input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="date"],
+input[type="number"],
 select {
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 0.95rem;
+  padding: 9px 11px;
+  font-size: 0.93rem;
   font-family: inherit;
   width: 100%;
   color-scheme: dark;
@@ -129,8 +147,8 @@ select:focus {
 .btn {
   border: none;
   border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 0.92rem;
+  padding: 9px 14px;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -175,8 +193,8 @@ select:focus {
 }
 
 .app-shell {
-  max-width: 720px;
-  margin: 16px auto 0;
+  max-width: 960px;
+  margin: 14px auto 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -190,7 +208,7 @@ select:focus {
 }
 
 .app-header h1 {
-  font-size: 1.6rem;
+  font-size: 1.55rem;
   letter-spacing: -0.02em;
 }
 
@@ -199,14 +217,52 @@ select:focus {
   gap: 8px;
 }
 
-.add-card {
+.module-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px;
+  padding: 5px;
+}
+
+.module-tab {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 9px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.module-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.module-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.card h2,
+.section-head h2,
+.charts-section h2 {
+  font-size: 1.08rem;
+  font-weight: 700;
 }
 
 .add-controls {
@@ -335,41 +391,21 @@ select:focus {
 }
 
 .badge {
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
 }
 
-.badge-high {
-  background: rgba(239, 68, 68, 0.16);
-  color: #fca5a5;
-}
-
-.badge-medium {
-  background: rgba(245, 158, 11, 0.16);
-  color: #fcd34d;
-}
-
-.badge-low {
-  background: rgba(16, 185, 129, 0.16);
-  color: #6ee7b7;
-}
-
-.badge-date {
-  background: rgba(148, 163, 184, 0.12);
-  color: var(--muted);
-}
-
-.badge-overdue {
-  background: rgba(239, 68, 68, 0.22);
-  color: #fca5a5;
-}
-
-.badge-today {
-  background: rgba(59, 130, 246, 0.22);
-  color: #93c5fd;
-}
+.badge-high { background: rgba(239, 68, 68, 0.16); color: #fca5a5; }
+.badge-medium { background: rgba(245, 158, 11, 0.16); color: #fcd34d; }
+.badge-low { background: rgba(16, 185, 129, 0.16); color: #6ee7b7; }
+.badge-date { background: rgba(148, 163, 184, 0.12); color: var(--muted); }
+.badge-overdue { background: rgba(239, 68, 68, 0.22); color: #fca5a5; }
+.badge-today { background: rgba(59, 130, 246, 0.22); color: #93c5fd; }
+.badge-gym { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+.badge-rest { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+.badge-cardio { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; }
 
 .todo-actions {
   display: flex;
@@ -403,9 +439,177 @@ select:focus {
   border-radius: var(--radius);
 }
 
+/* Gym & Strava */
+.gym-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.card-header-row,
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.date-type-row {
+  display: flex;
+  gap: 8px;
+}
+
+.date-type-row input,
+.date-type-row select {
+  width: auto;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.field-wide {
+  grid-column: span 1;
+}
+
+.form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.stats-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.group-title {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  gap: 10px;
+}
+
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.kpi-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.kpi-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.kpi-sub {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.kpi-good { color: #6ee7b7; }
+.kpi-warn { color: #fcd34d; }
+.kpi-bad { color: #fca5a5; }
+.kpi-accent { color: #93c5fd; }
+
+.charts-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.chart-card h3 {
+  font-size: 0.92rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.chart-wrap {
+  position: relative;
+  height: 240px;
+  width: 100%;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.history-row:hover {
+  border-color: var(--accent);
+}
+
+.history-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.history-date-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.history-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
 .edit-dialog {
   margin: auto;
-  width: min(92vw, 420px);
+  width: min(92vw, 440px);
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -435,16 +639,30 @@ select:focus {
   margin-top: 6px;
 }
 
+@media (max-width: 700px) {
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .field-wide {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 540px) {
   .add-controls {
     grid-template-columns: 1fr 1fr;
   }
-
   .add-controls .btn-primary {
     grid-column: 1 / -1;
   }
-
   .edit-row {
     grid-template-columns: 1fr;
+  }
+  .date-type-row {
+    width: 100%;
+  }
+  .date-type-row input,
+  .date-type-row select {
+    flex: 1;
   }
 }

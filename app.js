@@ -6,6 +6,7 @@ const PRIORITY_LABEL = { high: 'Vysoká', medium: 'Střední', low: 'Nízká' };
 
 const state = {
   user: null,
+  activeModule: localStorage.getItem('activeModule') || 'todos',
   todos: [],
   filter: 'all',
   sort: 'smart',
@@ -13,9 +14,11 @@ const state = {
 
 const el = {
   errorBanner: document.getElementById('error-banner'),
+  toastBanner: document.getElementById('toast-banner'),
   loadingView: document.getElementById('loading-view'),
   authView: document.getElementById('auth-view'),
   appView: document.getElementById('app-view'),
+  pageTitle: document.getElementById('page-title'),
   loginForm: document.getElementById('login-form'),
   loginBtn: document.getElementById('login-btn'),
   emailInput: document.getElementById('email-input'),
@@ -23,6 +26,9 @@ const el = {
   logoutBtn: document.getElementById('logout-btn'),
   refreshBtn: document.getElementById('refresh-btn'),
   statsText: document.getElementById('stats-text'),
+  moduleTabs: document.querySelectorAll('.module-tab'),
+  moduleTodos: document.getElementById('module-todos'),
+  moduleGym: document.getElementById('module-gym'),
   todoForm: document.getElementById('todo-form'),
   titleInput: document.getElementById('title-input'),
   priorityInput: document.getElementById('priority-input'),
@@ -49,6 +55,17 @@ function showError(message) {
   errorTimer = setTimeout(() => el.errorBanner.classList.add('hidden'), 5000);
 }
 
+let toastTimer = null;
+function showToast(message) {
+  el.toastBanner.textContent = message;
+  el.toastBanner.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.toastBanner.classList.add('hidden'), 2600);
+}
+
+window.appShowError = showError;
+window.appShowToast = showToast;
+
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
@@ -70,15 +87,9 @@ function formatDueDate(dateStr, isCompleted) {
   const currentYear = new Date().getFullYear();
   const formatted = y === currentYear ? `${d}. ${m}.` : `${d}. ${m}. ${y}`;
 
-  if (isCompleted) {
-    return { text: formatted, cls: 'badge-date' };
-  }
-  if (dateStr < today) {
-    return { text: `Po termínu (${formatted})`, cls: 'badge-overdue' };
-  }
-  if (dateStr === today) {
-    return { text: 'Dnes', cls: 'badge-today' };
-  }
+  if (isCompleted) return { text: formatted, cls: 'badge-date' };
+  if (dateStr < today) return { text: `Po termínu (${formatted})`, cls: 'badge-overdue' };
+  if (dateStr === today) return { text: 'Dnes', cls: 'badge-today' };
   return { text: formatted, cls: 'badge-date' };
 }
 
@@ -88,7 +99,21 @@ function showView(name) {
   el.appView.classList.toggle('hidden', name !== 'app');
 }
 
-// Kontrola konfigurace před inicializací klienta
+function switchModule(moduleName) {
+  state.activeModule = moduleName;
+  localStorage.setItem('activeModule', moduleName);
+  el.moduleTabs.forEach((tab) => {
+    tab.classList.toggle('active', tab.dataset.module === moduleName);
+  });
+  el.moduleTodos.classList.toggle('hidden', moduleName !== 'todos');
+  el.moduleGym.classList.toggle('hidden', moduleName !== 'gym');
+  el.pageTitle.textContent = moduleName === 'gym' ? 'Gym & Strava' : 'Úkoly';
+}
+
+el.moduleTabs.forEach((tab) => {
+  tab.addEventListener('click', () => switchModule(tab.dataset.module));
+});
+
 if (SUPABASE_URL.includes('SEM_VLOZ') || SUPABASE_KEY.includes('SEM_VLOZ')) {
   showView('auth');
   showError('Doplň SUPABASE_URL a SUPABASE_KEY na začátku souboru app.js.');
@@ -109,7 +134,7 @@ async function fetchTodos() {
   }
 
   state.todos = data || [];
-  render();
+  renderTodos();
 }
 
 function getVisibleTodos() {
@@ -123,19 +148,13 @@ function getVisibleTodos() {
     if (a.is_completed !== b.is_completed) {
       return Number(a.is_completed) - Number(b.is_completed);
     }
-
-    if (state.sort === 'newest') {
-      return b.created_at.localeCompare(a.created_at);
-    }
-
+    if (state.sort === 'newest') return b.created_at.localeCompare(a.created_at);
     if (state.sort === 'due') {
       const dueA = a.due_date || '9999-12-31';
       const dueB = b.due_date || '9999-12-31';
       if (dueA !== dueB) return dueA.localeCompare(dueB);
       return PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
     }
-
-    // Výchozí "smart": priorita -> termín -> nejnovější
     const pDiff = PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority];
     if (pDiff !== 0) return pDiff;
     const dueA = a.due_date || '9999-12-31';
@@ -145,12 +164,11 @@ function getVisibleTodos() {
   });
 }
 
-function render() {
+function renderTodos() {
   const activeCount = state.todos.filter((t) => !t.is_completed).length;
   const completedCount = state.todos.length - activeCount;
-
   const activeWord = activeCount === 1 ? 'aktivní' : 'aktivních';
-  el.statsText.textContent = `${activeCount} ${activeWord} · ${completedCount} hotových`;
+  el.statsText.textContent = `${activeCount} ${activeWord} úkolů · ${completedCount} hotových`;
 
   el.clearCompletedBtn.classList.toggle('hidden', completedCount === 0);
   el.clearCompletedBtn.textContent = `Smazat hotové (${completedCount})`;
@@ -167,12 +185,7 @@ function render() {
 
       return `
         <li class="todo-item ${todo.is_completed ? 'completed' : ''}" data-id="${todo.id}">
-          <input
-            type="checkbox"
-            class="todo-checkbox"
-            ${todo.is_completed ? 'checked' : ''}
-            aria-label="Označit jako splněné"
-          >
+          <input type="checkbox" class="todo-checkbox" ${todo.is_completed ? 'checked' : ''} aria-label="Označit jako splněné">
           <div class="todo-content">
             <div class="todo-title">${escapeHtml(todo.title)}</div>
             <div class="todo-meta">
@@ -190,19 +203,16 @@ function render() {
     .join('');
 }
 
-// Přihlášení a odhlášení
 el.loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   el.loginBtn.disabled = true;
-
   const { error } = await db.auth.signInWithPassword({
     email: el.emailInput.value.trim(),
     password: el.passwordInput.value,
   });
-
   el.loginBtn.disabled = false;
   if (error) {
-    showError('Nesprávný e-mail nebo heslo.');
+    showError(`Chyba přihlášení: ${error.message}`);
   } else {
     el.passwordInput.value = '';
   }
@@ -214,9 +224,10 @@ el.logoutBtn.addEventListener('click', async () => {
 
 el.refreshBtn.addEventListener('click', () => {
   fetchTodos();
+  window.GymModule?.refresh();
+  showToast('Synchronizováno.');
 });
 
-// Přidání úkolu
 el.todoForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = el.titleInput.value.trim();
@@ -239,10 +250,9 @@ el.todoForm.addEventListener('submit', async (e) => {
   }
 
   state.todos.unshift(data);
-  render();
+  renderTodos();
 });
 
-// Akce na jednotlivých úkolech (odškrtnutí, úprava, smazání)
 el.todoList.addEventListener('click', async (e) => {
   const item = e.target.closest('.todo-item');
   if (!item) return;
@@ -254,16 +264,11 @@ el.todoList.addEventListener('click', async (e) => {
   if (e.target.classList.contains('todo-checkbox')) {
     const nextValue = e.target.checked;
     todo.is_completed = nextValue;
-    render();
-
-    const { error } = await db
-      .from('todos')
-      .update({ is_completed: nextValue })
-      .eq('id', id);
-
+    renderTodos();
+    const { error } = await db.from('todos').update({ is_completed: nextValue }).eq('id', id);
     if (error) {
       todo.is_completed = !nextValue;
-      render();
+      renderTodos();
       showError(`Chyba aktualizace: ${error.message}`);
     }
     return;
@@ -281,18 +286,16 @@ el.todoList.addEventListener('click', async (e) => {
   if (e.target.classList.contains('delete')) {
     const backup = [...state.todos];
     state.todos = state.todos.filter((t) => t.id !== id);
-    render();
-
+    renderTodos();
     const { error } = await db.from('todos').delete().eq('id', id);
     if (error) {
       state.todos = backup;
-      render();
+      renderTodos();
       showError(`Chyba mazání: ${error.message}`);
     }
   }
 });
 
-// Uložení úpravy z modálního okna
 el.editForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = el.editId.value;
@@ -301,16 +304,9 @@ el.editForm.addEventListener('submit', async (e) => {
     priority: el.editPriority.value,
     due_date: el.editDue.value || null,
   };
-
   if (!updates.title) return;
 
-  const { data, error } = await db
-    .from('todos')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
+  const { data, error } = await db.from('todos').update(updates).eq('id', id).select().single();
   if (error) {
     showError(`Nepodařilo se upravit: ${error.message}`);
     return;
@@ -318,23 +314,22 @@ el.editForm.addEventListener('submit', async (e) => {
 
   state.todos = state.todos.map((t) => (t.id === id ? data : t));
   el.editDialog.close();
-  render();
+  renderTodos();
 });
 
 el.cancelEditBtn.addEventListener('click', () => el.editDialog.close());
 
-// Filtry, řazení a hromadné mazání
 el.filterButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
     state.filter = btn.dataset.filter;
     el.filterButtons.forEach((b) => b.classList.toggle('active', b === btn));
-    render();
+    renderTodos();
   });
 });
 
 el.sortSelect.addEventListener('change', () => {
   state.sort = el.sortSelect.value;
-  render();
+  renderTodos();
 });
 
 el.clearCompletedBtn.addEventListener('click', async () => {
@@ -344,41 +339,46 @@ el.clearCompletedBtn.addEventListener('click', async () => {
 
   const backup = [...state.todos];
   state.todos = state.todos.filter((t) => !t.is_completed);
-  render();
+  renderTodos();
 
   const { error } = await db.from('todos').delete().in('id', completedIds);
   if (error) {
     state.todos = backup;
-    render();
+    renderTodos();
     showError(`Chyba mazání: ${error.message}`);
   }
 });
 
-// Automatická synchronizace při návratu do okna / aplikace
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.user) {
     fetchTodos();
+    window.GymModule?.refresh();
   }
 });
 
-// Sledování stavu přihlášení
+function onSignedIn(user) {
+  state.user = user;
+  showView('app');
+  switchModule(state.activeModule);
+  fetchTodos();
+  window.GymModule?.init(db, user);
+}
+
 db.auth.onAuthStateChange((_event, session) => {
-  state.user = session?.user ?? null;
-  if (state.user) {
-    showView('app');
-    fetchTodos();
+  if (session?.user) {
+    onSignedIn(session.user);
   } else {
+    state.user = null;
     state.todos = [];
+    window.GymModule?.reset();
     showView('auth');
   }
 });
 
 (async function init() {
   const { data: { session } } = await db.auth.getSession();
-  state.user = session?.user ?? null;
-  if (state.user) {
-    showView('app');
-    fetchTodos();
+  if (session?.user) {
+    onSignedIn(session.user);
   } else {
     showView('auth');
   }
