@@ -29,6 +29,7 @@ const el = {
   moduleTabs: document.querySelectorAll('.module-tab'),
   moduleTodos: document.getElementById('module-todos'),
   moduleGym: document.getElementById('module-gym'),
+  moduleWorkouts: document.getElementById('module-workouts'),
   todoForm: document.getElementById('todo-form'),
   titleInput: document.getElementById('title-input'),
   priorityInput: document.getElementById('priority-input'),
@@ -107,7 +108,12 @@ function switchModule(moduleName) {
   });
   el.moduleTodos.classList.toggle('hidden', moduleName !== 'todos');
   el.moduleGym.classList.toggle('hidden', moduleName !== 'gym');
-  el.pageTitle.textContent = moduleName === 'gym' ? 'Gym & Strava' : 'Úkoly';
+  el.moduleWorkouts.classList.toggle('hidden', moduleName !== 'workouts');
+
+  const titles = { todos: 'Úkoly', gym: 'Tělo & Strava', workouts: 'Tréninky & Síla' };
+  el.pageTitle.textContent = titles[moduleName] || 'Úkoly';
+
+  if (moduleName === 'workouts') window.WorkoutsModule?.onShow();
 }
 
 el.moduleTabs.forEach((tab) => {
@@ -225,6 +231,7 @@ el.logoutBtn.addEventListener('click', async () => {
 el.refreshBtn.addEventListener('click', () => {
   fetchTodos();
   window.GymModule?.refresh();
+  window.WorkoutsModule?.refresh();
   showToast('Synchronizováno.');
 });
 
@@ -353,6 +360,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.user) {
     fetchTodos();
     window.GymModule?.refresh();
+    window.WorkoutsModule?.refresh();
   }
 });
 
@@ -362,6 +370,7 @@ function onSignedIn(user) {
   switchModule(state.activeModule);
   fetchTodos();
   window.GymModule?.init(db, user);
+  window.WorkoutsModule?.init(db, user);
 }
 
 db.auth.onAuthStateChange((_event, session) => {
@@ -371,6 +380,7 @@ db.auth.onAuthStateChange((_event, session) => {
     state.user = null;
     state.todos = [];
     window.GymModule?.reset();
+    window.WorkoutsModule?.reset();
     showView('auth');
   }
 });

@@ -219,7 +219,7 @@ select:focus {
 
 .module-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -607,6 +607,86 @@ select:focus {
   color: var(--muted);
 }
 
+/* Tréninky & Síla */
+.preset-row {
+  display: flex;
+  gap: 6px;
+}
+
+.sets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.warmup-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.wo-actions-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.exercise-select {
+  width: auto;
+  min-width: 190px;
+}
+
+.wo-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.wo-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.wo-summary::-webkit-details-marker {
+  display: none;
+}
+
+.wo-details-body {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.86rem;
+}
+
+.wo-ex-line {
+  color: var(--muted);
+}
+
+.wo-ex-line strong {
+  color: var(--text);
+}
+
+/* Dialogy */
 .edit-dialog {
   margin: auto;
   width: min(92vw, 440px);
@@ -645,6 +725,18 @@ select:focus {
   }
   .field-wide {
     grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .set-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .set-row .set-exercise {
+    grid-column: 1 / -1;
+  }
+  .wo-actions-row {
+    grid-template-columns: 1fr;
   }
 }
 

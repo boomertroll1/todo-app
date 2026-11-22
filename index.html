@@ -15,6 +15,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="./stats.js" defer></script>
   <script src="./gym.js" defer></script>
+  <script src="./workouts.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
@@ -61,7 +62,8 @@
     <!-- Přepínač modulů -->
     <nav class="module-tabs" role="tablist">
       <button type="button" class="module-tab active" data-module="todos">Úkoly</button>
-      <button type="button" class="module-tab" data-module="gym">Gym & Strava</button>
+      <button type="button" class="module-tab" data-module="gym">Tělo & Strava</button>
+      <button type="button" class="module-tab" data-module="workouts">Tréninky</button>
     </nav>
 
     <!-- MODUL 1: ÚKOLY -->
@@ -101,7 +103,7 @@
       <p id="empty-state" class="empty-state hidden">Žádné úkoly k zobrazení.</p>
     </section>
 
-    <!-- MODUL 2: GYM & STRAVA -->
+    <!-- MODUL 2: TĚLO & STRAVA -->
     <section id="module-gym" class="module-panel hidden">
       <div class="gym-top-bar">
         <div id="profile-summary" class="muted">Nastav si výšku a cíle v profilu.</div>
@@ -206,6 +208,83 @@
           <span class="muted">Kliknutím načteš den k úpravě</span>
         </div>
         <div id="logs-history" class="history-list"></div>
+      </section>
+    </section>
+
+    <!-- MODUL 3: TRÉNINKY & SÍLA -->
+    <section id="module-workouts" class="module-panel hidden">
+      <form id="workout-form" class="card stack-sm">
+        <div class="card-header-row">
+          <h2>Nový trénink</h2>
+          <div class="preset-row">
+            <button type="button" class="chip wo-preset" data-preset="Push">Push</button>
+            <button type="button" class="chip wo-preset" data-preset="Pull">Pull</button>
+            <button type="button" class="chip wo-preset" data-preset="Legs">Legs</button>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <label class="field">
+            <span>Datum</span>
+            <input id="wo-date" type="date" required>
+          </label>
+          <label class="field">
+            <span>Název tréninku</span>
+            <input id="wo-name" type="text" maxlength="80" placeholder="Push A / Pull B..." required>
+          </label>
+          <label class="field">
+            <span>Délka (min)</span>
+            <input id="wo-duration" type="number" min="5" max="300" placeholder="75">
+          </label>
+          <label class="field">
+            <span>Náročnost (RPE 1–10)</span>
+            <input id="wo-rpe" type="number" step="0.5" min="1" max="10" placeholder="8.5">
+          </label>
+        </div>
+
+        <div class="sets-header">
+          <span class="muted">Série (zaškrtni <strong>W</strong> u zahřívací série)</span>
+        </div>
+        <div id="wo-sets-container" class="sets-list"></div>
+        <datalist id="exercise-datalist"></datalist>
+
+        <div class="wo-actions-row">
+          <button type="button" id="wo-add-set-btn" class="btn btn-ghost">+ Další série</button>
+          <input id="wo-notes" type="text" maxlength="200" placeholder="Poznámka k tréninku...">
+          <button type="submit" id="wo-save-btn" class="btn btn-primary">Uložit trénink</button>
+        </div>
+      </form>
+
+      <!-- Silové statistiky (19–23) -->
+      <section class="stats-section">
+        <div class="section-head">
+          <h2>Silová analytika</h2>
+          <select id="wo-exercise-select" aria-label="Vyber cvik" class="exercise-select"></select>
+        </div>
+        <div id="wo-stats-grid" class="kpi-grid"></div>
+      </section>
+
+      <!-- Grafy síly a objemu -->
+      <section class="charts-section">
+        <div class="charts-grid">
+          <div class="card chart-card">
+            <h3>Vývoj síly vybraného cviku (e1RM & max váha)</h3>
+            <div class="chart-wrap"><canvas id="exercise-chart"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <h3>Pracovní tonáž tréninků (posledních 20)</h3>
+            <div class="chart-wrap"><canvas id="volume-chart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Historie tréninků -->
+      <section class="card stack-sm">
+        <div class="section-head">
+          <h2>Historie tréninků</h2>
+          <span class="muted">Kliknutím rozbalíš série</span>
+        </div>
+        <div id="wo-history-list" class="history-list"></div>
       </section>
     </section>
   </main>
