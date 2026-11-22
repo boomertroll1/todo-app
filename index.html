@@ -19,6 +19,7 @@
   <script src="./stats.js" defer></script>
   <script src="./gym.js" defer></script>
   <script src="./workouts.js" defer></script>
+  <script src="./calendar.js" defer></script>
   <script src="./progress.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
@@ -67,13 +68,16 @@
     <!-- GAMING PLAYER HUD -->
     <section class="hud-bar" aria-label="Stav hráče">
       <div class="hud-left">
-        <span id="hud-level" class="hud-level mono">LVL 1</span>
-        <span id="hud-rank" class="hud-rank">IRON INITIATE</span>
+        <div id="hud-emblem" class="hud-emblem"></div>
+        <div class="hud-identity">
+          <span id="hud-level" class="hud-level mono">LVL 1</span>
+          <span id="hud-rank" class="hud-rank">IRON III</span>
+        </div>
       </div>
       <div class="hud-xp-block">
         <div class="hud-xp-meta">
           <span class="muted">XP PROGRES</span>
-          <span id="hud-xp-text" class="mono">0 / 150 XP</span>
+          <span id="hud-xp-text" class="mono">0 / 140 XP</span>
         </div>
         <div class="hud-xp-track">
           <div id="hud-xp-fill" class="hud-xp-fill" style="width: 0%;"></div>
@@ -82,18 +86,19 @@
       <div id="hud-streak" class="hud-streak mono" title="Aktuální streak">🔥 0d</div>
     </section>
 
-    <!-- Přepínač modulů -->
+    <!-- Přepínač modulů (5 záložek) -->
     <nav class="module-tabs" role="tablist">
       <button type="button" class="module-tab active" data-module="todos">Úkoly</button>
+      <button type="button" class="module-tab" data-module="calendar">Kalendář</button>
       <button type="button" class="module-tab" data-module="gym">Tělo & Strava</button>
       <button type="button" class="module-tab" data-module="workouts">Tréninky</button>
       <button type="button" class="module-tab" data-module="progress">Progres</button>
     </nav>
 
-    <!-- MODUL 1: ÚKOLY -->
+    <!-- MODUL 1: ÚKOLY + PODÚKOLY -->
     <section id="module-todos" class="module-panel">
       <form id="todo-form" class="card stack-sm">
-        <input id="title-input" type="text" placeholder="Nový quest / úkol..." maxlength="200" required autocomplete="off">
+        <input id="title-input" type="text" placeholder="Nový quest / velký úkol..." maxlength="200" required autocomplete="off">
         <div class="add-controls">
           <select id="priority-input" aria-label="Priorita">
             <option value="high">Vysoká (+40 XP)</option>
@@ -102,6 +107,15 @@
           </select>
           <input id="due-input" type="date" aria-label="Termín">
           <button type="submit" class="btn btn-primary">Přidat</button>
+        </div>
+
+        <!-- Kolonka pro podúkoly -->
+        <div class="subtask-builder">
+          <div class="subtask-input-row">
+            <input id="subtask-draft-input" type="text" placeholder="+ Přidat podúkol (volitelné, +5 XP za každý)..." maxlength="140" autocomplete="off">
+            <button type="button" id="add-subtask-draft-btn" class="btn btn-ghost">+ Krok</button>
+          </div>
+          <ul id="subtask-draft-list" class="subtask-draft-list"></ul>
         </div>
       </form>
 
@@ -127,7 +141,39 @@
       <p id="empty-state" class="empty-state hidden">Žádné úkoly k zobrazení.</p>
     </section>
 
-    <!-- MODUL 2: TĚLO & STRAVA -->
+    <!-- MODUL 2: KALENDÁŘ -->
+    <section id="module-calendar" class="module-panel hidden">
+      <section class="card stack-sm">
+        <div class="cal-header">
+          <h2 id="cal-month-label">Kalendář</h2>
+          <div class="cal-nav">
+            <button type="button" id="cal-prev-btn" class="btn btn-ghost">◀</button>
+            <button type="button" id="cal-today-btn" class="btn btn-ghost">Dnes</button>
+            <button type="button" id="cal-next-btn" class="btn btn-ghost">▶</button>
+          </div>
+        </div>
+
+        <div class="cal-weekdays mono">
+          <span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><span>Ne</span>
+        </div>
+        <div id="cal-grid" class="cal-grid"></div>
+
+        <div class="cal-legend muted">
+          <span><i class="cal-dot dot-todo"></i> Úkol</span>
+          <span><i class="cal-dot dot-gym"></i> Gym den</span>
+          <span><i class="cal-dot dot-rest"></i> Rest</span>
+          <span><i class="cal-dot dot-wo"></i> Trénink</span>
+          <span><i class="cal-dot dot-photo"></i> Fotka</span>
+        </div>
+      </section>
+
+      <section class="card stack-sm">
+        <h2 id="cal-detail-title">Detail dne</h2>
+        <div id="cal-detail-body" class="stack-sm"></div>
+      </section>
+    </section>
+
+    <!-- MODUL 3: TĚLO & STRAVA -->
     <section id="module-gym" class="module-panel hidden">
       <div class="gym-top-bar">
         <div id="profile-summary" class="muted mono">Nastav si výšku a cíle v profilu.</div>
@@ -231,7 +277,7 @@
       </section>
     </section>
 
-    <!-- MODUL 3: TRÉNINKY & SÍLA -->
+    <!-- MODUL 4: TRÉNINKY & SÍLA -->
     <section id="module-workouts" class="module-panel hidden">
       <form id="workout-form" class="card stack-sm">
         <div class="card-header-row">
@@ -305,8 +351,10 @@
       </section>
     </section>
 
-    <!-- MODUL 4: PROGRES & RPG -->
+    <!-- MODUL 5: PROGRES, NEKONEČNÉ RANKY & FOTKY -->
     <section id="module-progress" class="module-panel hidden">
+      <section id="rank-showcase" class="card rank-showcase"></section>
+
       <div id="prog-kpi-grid" class="kpi-grid"></div>
 
       <section class="charts-grid prog-charts-grid">
@@ -320,17 +368,48 @@
         </div>
       </section>
 
+      <!-- Fotogalerie progresu -->
+      <section class="card stack-sm">
+        <div class="section-head">
+          <h2>Fotogalerie & Progres</h2>
+          <span class="muted">+15 XP za každou fotku</span>
+        </div>
+
+        <form id="photo-upload-form" class="photo-upload-grid">
+          <input id="photo-file-input" type="file" accept="image/*" required>
+          <input id="photo-date-input" type="date" required>
+          <select id="photo-category-input" aria-label="Kategorie fotky">
+            <option value="progres">Progres / Forma</option>
+            <option value="gym">Gym</option>
+            <option value="jidlo">Jídlo</option>
+            <option value="ostatni">Ostatní</option>
+          </select>
+          <input id="photo-caption-input" type="text" maxlength="120" placeholder="Popisek (např. Ranní forma 82 kg)...">
+          <button type="submit" id="photo-submit-btn" class="btn btn-primary">Nahrát fotku</button>
+        </form>
+
+        <div class="filter-group photo-filter-row">
+          <button type="button" class="chip photo-filter-chip active" data-cat="all">Vše</button>
+          <button type="button" class="chip photo-filter-chip" data-cat="progres">Progres</button>
+          <button type="button" class="chip photo-filter-chip" data-cat="gym">Gym</button>
+          <button type="button" class="chip photo-filter-chip" data-cat="jidlo">Jídlo</button>
+          <button type="button" class="chip photo-filter-chip" data-cat="ostatni">Ostatní</button>
+        </div>
+
+        <div id="photo-gallery-grid" class="photo-gallery-grid"></div>
+      </section>
+
       <section class="card stack-sm">
         <div class="section-head">
           <h2>Achievementy</h2>
-          <span id="achievements-count" class="muted mono">0 / 8 odemčeno</span>
+          <span id="achievements-count" class="muted mono">0 / 9 odemčeno</span>
         </div>
         <div id="achievements-grid" class="ach-grid"></div>
       </section>
     </section>
   </main>
 
-  <!-- Dialog pro úpravu úkolu -->
+  <!-- Dialog pro úpravu úkolu + podúkolů -->
   <dialog id="edit-dialog" class="edit-dialog">
     <form id="edit-form" class="stack">
       <h2>Upravit úkol</h2>
@@ -352,6 +431,14 @@
           <span>Termín</span>
           <input id="edit-due" type="date">
         </label>
+      </div>
+      <div class="stack-sm">
+        <span class="field"><span>Podúkoly</span></span>
+        <div class="subtask-input-row">
+          <input id="edit-subtask-input" type="text" placeholder="+ Nový podúkol..." maxlength="140">
+          <button type="button" id="edit-add-subtask-btn" class="btn btn-ghost">+</button>
+        </div>
+        <ul id="edit-subtask-list" class="subtask-draft-list"></ul>
       </div>
       <div class="dialog-actions">
         <button type="button" id="cancel-edit-btn" class="btn btn-ghost">Zrušit</button>
@@ -399,6 +486,15 @@
         <button type="submit" class="btn btn-primary">Uložit profil</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Lightbox pro zvětšení fotky -->
+  <dialog id="photo-lightbox" class="lightbox-dialog">
+    <div class="lightbox-inner">
+      <button type="button" id="lightbox-close-btn" class="btn btn-ghost lightbox-close">✕ Zavřít</button>
+      <img id="lightbox-img" src="" alt="Náhled fotky" class="lightbox-img">
+      <p id="lightbox-caption" class="lightbox-caption muted"></p>
+    </div>
   </dialog>
 </body>
 </html>

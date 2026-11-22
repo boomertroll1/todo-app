@@ -10,6 +10,8 @@ const state = {
   todos: [],
   filter: 'all',
   sort: 'smart',
+  draftSubtasks: [],
+  editSubtasks: [],
 };
 
 const el = {
@@ -26,27 +28,43 @@ const el = {
   logoutBtn: document.getElementById('logout-btn'),
   refreshBtn: document.getElementById('refresh-btn'),
   statsText: document.getElementById('stats-text'),
+
   moduleTabs: document.querySelectorAll('.module-tab'),
   moduleTodos: document.getElementById('module-todos'),
+  moduleCalendar: document.getElementById('module-calendar'),
   moduleGym: document.getElementById('module-gym'),
   moduleWorkouts: document.getElementById('module-workouts'),
   moduleProgress: document.getElementById('module-progress'),
+
   todoForm: document.getElementById('todo-form'),
   titleInput: document.getElementById('title-input'),
   priorityInput: document.getElementById('priority-input'),
   dueInput: document.getElementById('due-input'),
+  subtaskDraftInput: document.getElementById('subtask-draft-input'),
+  addSubtaskDraftBtn: document.getElementById('add-subtask-draft-btn'),
+  subtaskDraftList: document.getElementById('subtask-draft-list'),
+
   todoList: document.getElementById('todo-list'),
   emptyState: document.getElementById('empty-state'),
   filterButtons: document.querySelectorAll('.chip[data-filter]'),
   sortSelect: document.getElementById('sort-select'),
   clearCompletedBtn: document.getElementById('clear-completed-btn'),
+
   editDialog: document.getElementById('edit-dialog'),
   editForm: document.getElementById('edit-form'),
   editId: document.getElementById('edit-id'),
   editTitle: document.getElementById('edit-title'),
   editPriority: document.getElementById('edit-priority'),
   editDue: document.getElementById('edit-due'),
+  editSubtaskInput: document.getElementById('edit-subtask-input'),
+  editAddSubtaskBtn: document.getElementById('edit-add-subtask-btn'),
+  editSubtaskList: document.getElementById('edit-subtask-list'),
   cancelEditBtn: document.getElementById('cancel-edit-btn'),
+
+  lightbox: document.getElementById('photo-lightbox'),
+  lightboxImg: document.getElementById('lightbox-img'),
+  lightboxCaption: document.getElementById('lightbox-caption'),
+  lightboxCloseBtn: document.getElementById('lightbox-close-btn'),
 };
 
 let errorTimer = null;
@@ -67,6 +85,17 @@ function showToast(message) {
 
 window.appShowError = showError;
 window.appShowToast = showToast;
+
+window.openPhotoLightbox = (src, caption = '') => {
+  el.lightboxImg.src = src;
+  el.lightboxCaption.textContent = caption;
+  el.lightbox.showModal();
+};
+
+el.lightboxCloseBtn.addEventListener('click', () => el.lightbox.close());
+el.lightbox.addEventListener('click', (e) => {
+  if (e.target === el.lightbox) el.lightbox.close();
+});
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -108,18 +137,21 @@ function switchModule(moduleName) {
     tab.classList.toggle('active', tab.dataset.module === moduleName);
   });
   el.moduleTodos.classList.toggle('hidden', moduleName !== 'todos');
+  el.moduleCalendar.classList.toggle('hidden', moduleName !== 'calendar');
   el.moduleGym.classList.toggle('hidden', moduleName !== 'gym');
   el.moduleWorkouts.classList.toggle('hidden', moduleName !== 'workouts');
   el.moduleProgress.classList.toggle('hidden', moduleName !== 'progress');
 
   const titles = {
     todos: 'Úkoly',
+    calendar: 'Kalendář',
     gym: 'Tělo & Strava',
     workouts: 'Tréninky & Síla',
-    progress: 'Progres & RPG',
+    progress: 'Progres & Ranky',
   };
   el.pageTitle.textContent = titles[moduleName] || 'Úkoly';
 
+  if (moduleName === 'calendar') window.CalendarModule?.onShow();
   if (moduleName === 'workouts') window.WorkoutsModule?.onShow();
   if (moduleName === 'progress') window.ProgressModule?.onShow();
 }
@@ -130,6 +162,79 @@ el.moduleTabs.forEach((tab) => {
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// --- Správa návrhových podúkolů při přidávání nového úkolu ---
+function renderDraftSubtasks() {
+  el.subtaskDraftList.innerHTML = state.draftSubtasks
+    .map(
+      (s, i) => `
+      <li class="subtask-draft-item">
+        <span>${escapeHtml(s.text)}</span>
+        <button type="button" class="icon-btn delete" data-remove-draft="${i}" title="Odebrat">✕</button>
+      </li>
+    `
+    )
+    .join('');
+}
+
+function addDraftSubtask() {
+  const txt = el.subtaskDraftInput.value.trim();
+  if (!txt) return;
+  state.draftSubtasks.push({ id: crypto.randomUUID(), text: txt, done: false });
+  el.subtaskDraftInput.value = '';
+  renderDraftSubtasks();
+}
+
+el.addSubtaskDraftBtn.addEventListener('click', addDraftSubtask);
+el.subtaskDraftInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addDraftSubtask();
+  }
+});
+el.subtaskDraftList.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-remove-draft]');
+  if (!btn) return;
+  state.draftSubtasks.splice(Number(btn.dataset.removeDraft), 1);
+  renderDraftSubtasks();
+});
+
+// --- Správa podúkolů v editačním dialogu ---
+function renderEditSubtasks() {
+  el.editSubtaskList.innerHTML = state.editSubtasks
+    .map(
+      (s, i) => `
+      <li class="subtask-draft-item">
+        <span>${s.done ? '✅ ' : '⬜ '}${escapeHtml(s.text)}</span>
+        <button type="button" class="icon-btn delete" data-remove-edit-sub="${i}" title="Odebrat">✕</button>
+      </li>
+    `
+    )
+    .join('');
+}
+
+function addEditSubtask() {
+  const txt = el.editSubtaskInput.value.trim();
+  if (!txt) return;
+  state.editSubtasks.push({ id: crypto.randomUUID(), text: txt, done: false });
+  el.editSubtaskInput.value = '';
+  renderEditSubtasks();
+}
+
+el.editAddSubtaskBtn.addEventListener('click', addEditSubtask);
+el.editSubtaskInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addEditSubtask();
+  }
+});
+el.editSubtaskList.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-remove-edit-sub]');
+  if (!btn) return;
+  state.editSubtasks.splice(Number(btn.dataset.removeEditSub), 1);
+  renderEditSubtasks();
+});
+
+// --- Načítání a vykreslování úkolů ---
 async function fetchTodos() {
   const { data, error } = await db
     .from('todos')
@@ -141,7 +246,10 @@ async function fetchTodos() {
     return;
   }
 
-  state.todos = data || [];
+  state.todos = (data || []).map((t) => ({
+    ...t,
+    subtasks: Array.isArray(t.subtasks) ? t.subtasks : [],
+  }));
   renderTodos();
 }
 
@@ -191,6 +299,35 @@ function renderTodos() {
         ? `<span class="badge ${dueInfo.cls}">${escapeHtml(dueInfo.text)}</span>`
         : '';
 
+      const subs = Array.isArray(todo.subtasks) ? todo.subtasks : [];
+      let subtasksHtml = '';
+      if (subs.length) {
+        const doneCount = subs.filter((s) => s.done).length;
+        const pct = Math.round((doneCount / subs.length) * 100);
+        subtasksHtml = `
+          <div class="todo-subtasks">
+            <div class="subtask-progress-row">
+              <div class="subtask-progress-track">
+                <div class="subtask-progress-fill" style="width: ${pct}%;"></div>
+              </div>
+              <span class="mono subtask-counter">${doneCount}/${subs.length}</span>
+            </div>
+            <div class="subtask-list">
+              ${subs
+                .map(
+                  (s, idx) => `
+                  <label class="subtask-row ${s.done ? 'done' : ''}">
+                    <input type="checkbox" class="subtask-check" data-sub-idx="${idx}" ${s.done ? 'checked' : ''}>
+                    <span class="subtask-text">${escapeHtml(s.text)}</span>
+                  </label>
+                `
+                )
+                .join('')}
+            </div>
+          </div>
+        `;
+      }
+
       return `
         <li class="todo-item ${todo.is_completed ? 'completed' : ''}" data-id="${todo.id}">
           <input type="checkbox" class="todo-checkbox" ${todo.is_completed ? 'checked' : ''} aria-label="Označit jako splněné">
@@ -199,10 +336,12 @@ function renderTodos() {
             <div class="todo-meta">
               <span class="badge badge-${todo.priority}">${PRIORITY_LABEL[todo.priority] || todo.priority}</span>
               ${dueBadge}
+              ${subs.length ? `<span class="badge badge-date">Podúkoly: ${subs.filter((s) => s.done).length}/${subs.length}</span>` : ''}
             </div>
+            ${subtasksHtml}
           </div>
           <div class="todo-actions">
-            <button type="button" class="icon-btn edit" title="Upravit" aria-label="Upravit">✎</button>
+            <button type="button" class="icon-btn edit" title="Upravit / Podúkoly" aria-label="Upravit">✎</button>
             <button type="button" class="icon-btn delete" title="Smazat" aria-label="Smazat">✕</button>
           </div>
         </li>
@@ -211,6 +350,7 @@ function renderTodos() {
     .join('');
 }
 
+// --- Autentizace ---
 el.loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   el.loginBtn.disabled = true;
@@ -232,26 +372,36 @@ el.logoutBtn.addEventListener('click', async () => {
 
 el.refreshBtn.addEventListener('click', () => {
   fetchTodos();
+  window.CalendarModule?.refresh();
   window.GymModule?.refresh();
   window.WorkoutsModule?.refresh();
   window.ProgressModule?.refresh();
   showToast('Systém synchronizován.');
 });
 
+// --- Přidání úkolu ---
 el.todoForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = el.titleInput.value.trim();
   if (!title || !state.user) return;
+
+  // Pokud uživatel napsal text do pole podúkolu a zapomněl kliknout na "+ Krok", přidej ho taky
+  if (el.subtaskDraftInput.value.trim()) {
+    addDraftSubtask();
+  }
 
   const payload = {
     user_id: state.user.id,
     title,
     priority: el.priorityInput.value,
     due_date: el.dueInput.value || null,
+    subtasks: state.draftSubtasks,
   };
 
   el.titleInput.value = '';
   el.dueInput.value = '';
+  state.draftSubtasks = [];
+  renderDraftSubtasks();
 
   const { data, error } = await db.from('todos').insert([payload]).select().single();
   if (error) {
@@ -259,10 +409,12 @@ el.todoForm.addEventListener('submit', async (e) => {
     return;
   }
 
-  state.todos.unshift(data);
+  state.todos.unshift({ ...data, subtasks: Array.isArray(data.subtasks) ? data.subtasks : [] });
   renderTodos();
+  window.CalendarModule?.refresh();
 });
 
+// --- Kliknutí na úkol / podúkol ---
 el.todoList.addEventListener('click', async (e) => {
   const item = e.target.closest('.todo-item');
   if (!item) return;
@@ -271,6 +423,29 @@ el.todoList.addEventListener('click', async (e) => {
   const todo = state.todos.find((t) => t.id === id);
   if (!todo) return;
 
+  // Odškrtnutí podúkolu
+  if (e.target.classList.contains('subtask-check')) {
+    const idx = Number(e.target.dataset.subIdx);
+    const updatedSubs = todo.subtasks.map((s, i) =>
+      i === idx ? { ...s, done: e.target.checked } : s
+    );
+    const prevSubs = todo.subtasks;
+    todo.subtasks = updatedSubs;
+    renderTodos();
+
+    const { error } = await db.from('todos').update({ subtasks: updatedSubs }).eq('id', id);
+    if (error) {
+      todo.subtasks = prevSubs;
+      renderTodos();
+      showError(`Chyba podúkolu: ${error.message}`);
+    } else {
+      window.ProgressModule?.refresh();
+      window.CalendarModule?.refresh();
+    }
+    return;
+  }
+
+  // Odškrtnutí hlavního úkolu
   if (e.target.classList.contains('todo-checkbox')) {
     const nextValue = e.target.checked;
     todo.is_completed = nextValue;
@@ -282,19 +457,24 @@ el.todoList.addEventListener('click', async (e) => {
       showError(`Chyba aktualizace: ${error.message}`);
     } else {
       window.ProgressModule?.refresh();
+      window.CalendarModule?.refresh();
     }
     return;
   }
 
+  // Otevření editace
   if (e.target.classList.contains('edit')) {
     el.editId.value = todo.id;
     el.editTitle.value = todo.title;
     el.editPriority.value = todo.priority;
     el.editDue.value = todo.due_date || '';
+    state.editSubtasks = (todo.subtasks || []).map((s) => ({ ...s }));
+    renderEditSubtasks();
     el.editDialog.showModal();
     return;
   }
 
+  // Smazání úkolu
   if (e.target.classList.contains('delete')) {
     const backup = [...state.todos];
     state.todos = state.todos.filter((t) => t.id !== id);
@@ -306,17 +486,22 @@ el.todoList.addEventListener('click', async (e) => {
       showError(`Chyba mazání: ${error.message}`);
     } else {
       window.ProgressModule?.refresh();
+      window.CalendarModule?.refresh();
     }
   }
 });
 
+// Uložení úpravy
 el.editForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = el.editId.value;
+  if (el.editSubtaskInput.value.trim()) addEditSubtask();
+
   const updates = {
     title: el.editTitle.value.trim(),
     priority: el.editPriority.value,
     due_date: el.editDue.value || null,
+    subtasks: state.editSubtasks,
   };
   if (!updates.title) return;
 
@@ -326,9 +511,13 @@ el.editForm.addEventListener('submit', async (e) => {
     return;
   }
 
-  state.todos = state.todos.map((t) => (t.id === id ? data : t));
+  state.todos = state.todos.map((t) =>
+    t.id === id ? { ...data, subtasks: Array.isArray(data.subtasks) ? data.subtasks : [] } : t
+  );
   el.editDialog.close();
   renderTodos();
+  window.CalendarModule?.refresh();
+  window.ProgressModule?.refresh();
 });
 
 el.cancelEditBtn.addEventListener('click', () => el.editDialog.close());
@@ -362,12 +551,14 @@ el.clearCompletedBtn.addEventListener('click', async () => {
     showError(`Chyba mazání: ${error.message}`);
   } else {
     window.ProgressModule?.refresh();
+    window.CalendarModule?.refresh();
   }
 });
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.user) {
     fetchTodos();
+    window.CalendarModule?.refresh();
     window.GymModule?.refresh();
     window.WorkoutsModule?.refresh();
     window.ProgressModule?.refresh();
@@ -379,6 +570,7 @@ function onSignedIn(user) {
   showView('app');
   switchModule(state.activeModule);
   fetchTodos();
+  window.CalendarModule?.init(db, user);
   window.GymModule?.init(db, user);
   window.WorkoutsModule?.init(db, user);
   window.ProgressModule?.init(db, user);
@@ -390,6 +582,7 @@ db.auth.onAuthStateChange((_event, session) => {
   } else {
     state.user = null;
     state.todos = [];
+    window.CalendarModule?.reset();
     window.GymModule?.reset();
     window.WorkoutsModule?.reset();
     window.ProgressModule?.reset();
