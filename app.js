@@ -11,6 +11,8 @@ const state = {
   sort: 'due',
   draftSubtasks: [],
   editSubtasks: [],
+  draftAttachments: [],
+  editAttachments: [],
 };
 
 const el = {
@@ -55,6 +57,8 @@ const el = {
   subtaskDraftInput: document.getElementById('subtask-draft-input'),
   addSubtaskDraftBtn: document.getElementById('add-subtask-draft-btn'),
   subtaskDraftList: document.getElementById('subtask-draft-list'),
+  todoPhotoInput: document.getElementById('todo-photo-input'),
+  todoPhotoDraftList: document.getElementById('todo-photo-draft-list'),
 
   todoList: document.getElementById('todo-list'),
   emptyState: document.getElementById('empty-state'),
@@ -70,6 +74,8 @@ const el = {
   editSubtaskInput: document.getElementById('edit-subtask-input'),
   editAddSubtaskBtn: document.getElementById('edit-add-subtask-btn'),
   editSubtaskList: document.getElementById('edit-subtask-list'),
+  editPhotoInput: document.getElementById('edit-photo-input'),
+  editPhotoList: document.getElementById('edit-photo-list'),
   cancelEditBtn: document.getElementById('cancel-edit-btn'),
 
   lightbox: document.getElementById('photo-lightbox'),
@@ -107,6 +113,39 @@ el.lightboxCloseBtn.addEventListener('click', () => el.lightbox.close());
 el.lightbox.addEventListener('click', (e) => {
   if (e.target === el.lightbox) el.lightbox.close();
 });
+
+function compressAttachment(file, maxSize = 1200, quality = 0.78) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Nepodařilo se načíst obrázek.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Neplatný formát obrázku.'));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) {
+          if (width >= height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+window.appCompressImage = compressAttachment;
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -176,7 +215,7 @@ el.reminderGoBtns.forEach((btn) => {
   btn.addEventListener('click', () => switchModule(btn.dataset.reminderGo));
 });
 
-// --- Podzáložky v Úkolech (Úkoly & Rutiny vs. Dny bez...) ---
+// --- Podzáložky v Úkolech ---
 function switchTodosSubtab(tabName) {
   state.activeTodosTab = tabName;
   el.todosSubtabs.forEach((btn) => {
@@ -254,6 +293,124 @@ el.moduleTabs.forEach((tab) => {
 });
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// --- Správa příloh (fotek) u nového i upravovaného úkolu ---
+async function handleImageFiles(files, targetArray, renderFn) {
+  const imageFiles = Array.from(files || []).filter((f) => f.type.startsWith('image/'));
+  if (!imageFiles.length) return;
+
+  for (const file of imageFiles) {
+    if (targetArray.length >= 6) {
+      showError('Maximálně 6 fotek na jeden úkol.');
+      break;
+    }
+    try {
+      const data = await compressAttachment(file, 1200, 0.78);
+      targetArray.push({ id: crypto.randomUUID(), data });
+    } catch (err) {
+      showError(`Chyba fotky: ${err.message}`);
+    }
+  }
+  renderFn();
+}
+
+function renderAttachmentPreviews(container, list, dataAttr) {
+  if (!container) return;
+  container.innerHTML = list
+    .map(
+      (att, i) => `
+      <div class="att-draft-item">
+        <img src="${att.data}" alt="Příloha ${i + 1}" class="att-draft-img" data-preview-src="${i}">
+        <button type="button" class="att-draft-del" ${dataAttr}="${i}" title="Odebrat fotku">✕</button>
+      </div>
+    `
+    )
+    .join('');
+}
+
+function renderDraftAttachments() {
+  renderAttachmentPreviews(el.todoPhotoDraftList, state.draftAttachments, 'data-remove-draft-att');
+}
+
+function renderEditAttachments() {
+  renderAttachmentPreviews(el.editPhotoList, state.editAttachments, 'data-remove-edit-att');
+}
+
+if (el.todoPhotoInput) {
+  el.todoPhotoInput.addEventListener('change', async (e) => {
+    await handleImageFiles(e.target.files, state.draftAttachments, renderDraftAttachments);
+    el.todoPhotoInput.value = '';
+  });
+}
+
+if (el.todoPhotoDraftList) {
+  el.todoPhotoDraftList.addEventListener('click', (e) => {
+    const delBtn = e.target.closest('[data-remove-draft-att]');
+    if (delBtn) {
+      state.draftAttachments.splice(Number(delBtn.dataset.removeDraftAtt), 1);
+      renderDraftAttachments();
+      return;
+    }
+    const img = e.target.closest('[data-preview-src]');
+    if (img) {
+      const att = state.draftAttachments[Number(img.dataset.previewSrc)];
+      if (att) window.openPhotoLightbox(att.data, 'Náhled přílohy');
+    }
+  });
+}
+
+if (el.editPhotoInput) {
+  el.editPhotoInput.addEventListener('change', async (e) => {
+    await handleImageFiles(e.target.files, state.editAttachments, renderEditAttachments);
+    el.editPhotoInput.value = '';
+  });
+}
+
+if (el.editPhotoList) {
+  el.editPhotoList.addEventListener('click', (e) => {
+    const delBtn = e.target.closest('[data-remove-edit-att]');
+    if (delBtn) {
+      state.editAttachments.splice(Number(delBtn.dataset.removeEditAtt), 1);
+      renderEditAttachments();
+      return;
+    }
+    const img = e.target.closest('[data-preview-src]');
+    if (img) {
+      const att = state.editAttachments[Number(img.dataset.previewSrc)];
+      if (att) window.openPhotoLightbox(att.data, 'Náhled přílohy');
+    }
+  });
+}
+
+// Vkládání screenshotu přes Ctrl+V do nového úkolu i do editačního dialogu
+function extractClipboardImages(e) {
+  const items = e.clipboardData?.items;
+  if (!items) return [];
+  const files = [];
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const f = item.getAsFile();
+      if (f) files.push(f);
+    }
+  }
+  return files;
+}
+
+el.todoForm.addEventListener('paste', async (e) => {
+  const files = extractClipboardImages(e);
+  if (!files.length) return;
+  e.preventDefault();
+  await handleImageFiles(files, state.draftAttachments, renderDraftAttachments);
+  showToast('Obrázek vložen ze schránky.');
+});
+
+el.editDialog.addEventListener('paste', async (e) => {
+  const files = extractClipboardImages(e);
+  if (!files.length) return;
+  e.preventDefault();
+  await handleImageFiles(files, state.editAttachments, renderEditAttachments);
+  showToast('Obrázek vložen ze schránky.');
+});
 
 // --- Návrhové podúkoly ---
 function renderDraftSubtasks() {
@@ -342,6 +499,7 @@ async function fetchTodos() {
   state.todos = (data || []).map((t) => ({
     ...t,
     subtasks: Array.isArray(t.subtasks) ? t.subtasks : [],
+    attachments: Array.isArray(t.attachments) ? t.attachments : [],
   }));
   renderTodos();
 }
@@ -387,13 +545,31 @@ function renderTodos() {
       const urg = getTodoUrgency(todo.due_date, todo.is_completed);
 
       const subs = Array.isArray(todo.subtasks) ? todo.subtasks : [];
+      const atts = Array.isArray(todo.attachments) ? todo.attachments : [];
+
       const subBadge = subs.length
         ? `<span class="badge badge-date">Podúkoly: ${subs.filter((s) => s.done).length}/${subs.length}</span>`
         : '';
+      const attBadge = atts.length
+        ? `<span class="badge badge-gym">📎 ${atts.length}</span>`
+        : '';
       const metaHtml =
-        dueBadge || subBadge
-          ? `<div class="todo-meta">${dueBadge}${subBadge}</div>`
+        dueBadge || subBadge || attBadge
+          ? `<div class="todo-meta">${dueBadge}${subBadge}${attBadge}</div>`
           : '';
+
+      const attachmentsHtml = atts.length
+        ? `
+          <div class="todo-attachments">
+            ${atts
+              .map(
+                (a, idx) =>
+                  `<img src="${a.data}" alt="Příloha ${idx + 1}" class="todo-att-thumb" data-att-idx="${idx}" loading="lazy">`
+              )
+              .join('')}
+          </div>
+        `
+        : '';
 
       let subtasksHtml = '';
       if (subs.length) {
@@ -429,10 +605,11 @@ function renderTodos() {
           <div class="todo-content">
             <div class="todo-title">${escapeHtml(todo.title)}</div>
             ${metaHtml}
+            ${attachmentsHtml}
             ${subtasksHtml}
           </div>
           <div class="todo-actions">
-            <button type="button" class="icon-btn edit" title="Upravit / Podúkoly" aria-label="Upravit">✎</button>
+            <button type="button" class="icon-btn edit" title="Upravit / Fotky / Podúkoly" aria-label="Upravit">✎</button>
             <button type="button" class="icon-btn delete" title="Smazat" aria-label="Smazat">✕</button>
           </div>
         </li>
@@ -488,12 +665,15 @@ el.todoForm.addEventListener('submit', async (e) => {
     priority: 'medium',
     due_date: el.dueInput.value || null,
     subtasks: state.draftSubtasks,
+    attachments: state.draftAttachments,
   };
 
   el.titleInput.value = '';
   el.dueInput.value = '';
   state.draftSubtasks = [];
+  state.draftAttachments = [];
   renderDraftSubtasks();
+  renderDraftAttachments();
 
   const { data, error } = await db.from('todos').insert([payload]).select().single();
   if (error) {
@@ -501,7 +681,11 @@ el.todoForm.addEventListener('submit', async (e) => {
     return;
   }
 
-  state.todos.unshift({ ...data, subtasks: Array.isArray(data.subtasks) ? data.subtasks : [] });
+  state.todos.unshift({
+    ...data,
+    subtasks: Array.isArray(data.subtasks) ? data.subtasks : [],
+    attachments: Array.isArray(data.attachments) ? data.attachments : [],
+  });
   renderTodos();
   window.CalendarModule?.refresh();
 });
@@ -513,6 +697,16 @@ el.todoList.addEventListener('click', async (e) => {
   const id = item.dataset.id;
   const todo = state.todos.find((t) => t.id === id);
   if (!todo) return;
+
+  // Zvětšení přiložené fotky v Lightboxu
+  if (e.target.classList.contains('todo-att-thumb')) {
+    const idx = Number(e.target.dataset.attIdx);
+    const att = (todo.attachments || [])[idx];
+    if (att) {
+      window.openPhotoLightbox(att.data, `${todo.title} (${idx + 1}/${todo.attachments.length})`);
+    }
+    return;
+  }
 
   if (e.target.classList.contains('subtask-check')) {
     const idx = Number(e.target.dataset.subIdx);
@@ -565,7 +759,9 @@ el.todoList.addEventListener('click', async (e) => {
     el.editTitle.value = todo.title;
     el.editDue.value = todo.due_date || '';
     state.editSubtasks = (todo.subtasks || []).map((s) => ({ ...s }));
+    state.editAttachments = (todo.attachments || []).map((a) => ({ ...a }));
     renderEditSubtasks();
+    renderEditAttachments();
     el.editDialog.showModal();
     return;
   }
@@ -595,6 +791,7 @@ el.editForm.addEventListener('submit', async (e) => {
     title: el.editTitle.value.trim(),
     due_date: el.editDue.value || null,
     subtasks: state.editSubtasks,
+    attachments: state.editAttachments,
   };
   if (!updates.title) return;
 
@@ -605,7 +802,13 @@ el.editForm.addEventListener('submit', async (e) => {
   }
 
   state.todos = state.todos.map((t) =>
-    t.id === id ? { ...data, subtasks: Array.isArray(data.subtasks) ? data.subtasks : [] } : t
+    t.id === id
+      ? {
+          ...data,
+          subtasks: Array.isArray(data.subtasks) ? data.subtasks : [],
+          attachments: Array.isArray(data.attachments) ? data.attachments : [],
+        }
+      : t
   );
   el.editDialog.close();
   renderTodos();

@@ -164,7 +164,7 @@
             </div>
             <span class="muted mono">10 XP / úkol · Cap 50 XP / d</span>
           </div>
-          <input id="title-input" type="text" placeholder="Např. Do pátku poslat úkol z analýzy..." maxlength="200" required autocomplete="off">
+          <input id="title-input" type="text" placeholder="Např. Do pátku spočítat příklady z analýzy..." maxlength="200" required autocomplete="off">
           <div class="add-controls">
             <input id="due-input" type="date" aria-label="Deadline" title="Do kdy to musí být hotové (čím blíž, tím víc svítí)">
             <button type="submit" class="btn btn-primary">Přidat</button>
@@ -176,6 +176,16 @@
               <button type="button" id="add-subtask-draft-btn" class="btn btn-ghost">+ Krok</button>
             </div>
             <ul id="subtask-draft-list" class="subtask-draft-list"></ul>
+          </div>
+
+          <!-- Přikládání fotek / zadání k úkolu -->
+          <div class="attachment-builder">
+            <div class="attachment-bar">
+              <input id="todo-photo-input" type="file" accept="image/*" multiple class="hidden">
+              <label for="todo-photo-input" class="btn btn-ghost btn-xs att-upload-label">📎 Přiložit fotku / zadání</label>
+              <span class="muted" style="font-size:0.76rem;">nebo vlož screenshot přes <span class="mono">Ctrl+V</span> (max 6)</span>
+            </div>
+            <div id="todo-photo-draft-list" class="attachment-preview-row"></div>
           </div>
         </form>
 
@@ -671,7 +681,7 @@
     </section>
   </main>
 
-  <!-- Dialog pro úpravu úkolu + podúkolů -->
+  <!-- Dialog pro úpravu úkolu + podúkolů + fotek -->
   <dialog id="edit-dialog" class="edit-dialog">
     <form id="edit-form" class="stack">
       <h2>Upravit úkol</h2>
@@ -691,6 +701,15 @@
           <button type="button" id="edit-add-subtask-btn" class="btn btn-ghost">+</button>
         </div>
         <ul id="edit-subtask-list" class="subtask-draft-list"></ul>
+      </div>
+      <div class="stack-sm">
+        <span class="field"><span>Přiložené fotky / zadání</span></span>
+        <div class="attachment-bar">
+          <input id="edit-photo-input" type="file" accept="image/*" multiple class="hidden">
+          <label for="edit-photo-input" class="btn btn-ghost btn-xs att-upload-label">📎 Přidat fotku</label>
+          <span class="muted" style="font-size:0.74rem;">nebo <span class="mono">Ctrl+V</span></span>
+        </div>
+        <div id="edit-photo-list" class="attachment-preview-row"></div>
       </div>
       <div class="dialog-actions">
         <button type="button" id="cancel-edit-btn" class="btn btn-ghost">Zrušit</button>
