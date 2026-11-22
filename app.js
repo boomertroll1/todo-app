@@ -30,6 +30,7 @@ const el = {
   moduleTodos: document.getElementById('module-todos'),
   moduleGym: document.getElementById('module-gym'),
   moduleWorkouts: document.getElementById('module-workouts'),
+  moduleProgress: document.getElementById('module-progress'),
   todoForm: document.getElementById('todo-form'),
   titleInput: document.getElementById('title-input'),
   priorityInput: document.getElementById('priority-input'),
@@ -109,22 +110,23 @@ function switchModule(moduleName) {
   el.moduleTodos.classList.toggle('hidden', moduleName !== 'todos');
   el.moduleGym.classList.toggle('hidden', moduleName !== 'gym');
   el.moduleWorkouts.classList.toggle('hidden', moduleName !== 'workouts');
+  el.moduleProgress.classList.toggle('hidden', moduleName !== 'progress');
 
-  const titles = { todos: 'Úkoly', gym: 'Tělo & Strava', workouts: 'Tréninky & Síla' };
+  const titles = {
+    todos: 'Úkoly',
+    gym: 'Tělo & Strava',
+    workouts: 'Tréninky & Síla',
+    progress: 'Progres & RPG',
+  };
   el.pageTitle.textContent = titles[moduleName] || 'Úkoly';
 
   if (moduleName === 'workouts') window.WorkoutsModule?.onShow();
+  if (moduleName === 'progress') window.ProgressModule?.onShow();
 }
 
 el.moduleTabs.forEach((tab) => {
   tab.addEventListener('click', () => switchModule(tab.dataset.module));
 });
-
-if (SUPABASE_URL.includes('SEM_VLOZ') || SUPABASE_KEY.includes('SEM_VLOZ')) {
-  showView('auth');
-  showError('Doplň SUPABASE_URL a SUPABASE_KEY na začátku souboru app.js.');
-  throw new Error('Chybí Supabase konfigurace.');
-}
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -174,7 +176,7 @@ function renderTodos() {
   const activeCount = state.todos.filter((t) => !t.is_completed).length;
   const completedCount = state.todos.length - activeCount;
   const activeWord = activeCount === 1 ? 'aktivní' : 'aktivních';
-  el.statsText.textContent = `${activeCount} ${activeWord} úkolů · ${completedCount} hotových`;
+  el.statsText.textContent = `${activeCount} ${activeWord} · ${completedCount} hotových`;
 
   el.clearCompletedBtn.classList.toggle('hidden', completedCount === 0);
   el.clearCompletedBtn.textContent = `Smazat hotové (${completedCount})`;
@@ -232,7 +234,8 @@ el.refreshBtn.addEventListener('click', () => {
   fetchTodos();
   window.GymModule?.refresh();
   window.WorkoutsModule?.refresh();
-  showToast('Synchronizováno.');
+  window.ProgressModule?.refresh();
+  showToast('Systém synchronizován.');
 });
 
 el.todoForm.addEventListener('submit', async (e) => {
@@ -277,6 +280,8 @@ el.todoList.addEventListener('click', async (e) => {
       todo.is_completed = !nextValue;
       renderTodos();
       showError(`Chyba aktualizace: ${error.message}`);
+    } else {
+      window.ProgressModule?.refresh();
     }
     return;
   }
@@ -299,6 +304,8 @@ el.todoList.addEventListener('click', async (e) => {
       state.todos = backup;
       renderTodos();
       showError(`Chyba mazání: ${error.message}`);
+    } else {
+      window.ProgressModule?.refresh();
     }
   }
 });
@@ -353,6 +360,8 @@ el.clearCompletedBtn.addEventListener('click', async () => {
     state.todos = backup;
     renderTodos();
     showError(`Chyba mazání: ${error.message}`);
+  } else {
+    window.ProgressModule?.refresh();
   }
 });
 
@@ -361,6 +370,7 @@ document.addEventListener('visibilitychange', () => {
     fetchTodos();
     window.GymModule?.refresh();
     window.WorkoutsModule?.refresh();
+    window.ProgressModule?.refresh();
   }
 });
 
@@ -371,6 +381,7 @@ function onSignedIn(user) {
   fetchTodos();
   window.GymModule?.init(db, user);
   window.WorkoutsModule?.init(db, user);
+  window.ProgressModule?.init(db, user);
 }
 
 db.auth.onAuthStateChange((_event, session) => {
@@ -381,6 +392,7 @@ db.auth.onAuthStateChange((_event, session) => {
     state.todos = [];
     window.GymModule?.reset();
     window.WorkoutsModule?.reset();
+    window.ProgressModule?.reset();
     showView('auth');
   }
 });

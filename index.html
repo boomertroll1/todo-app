@@ -3,19 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#0f1117">
+  <meta name="theme-color" content="#07090f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="OS App">
-  <title>Úkoly & Gym</title>
+  <title>Life OS · HUD</title>
   <link rel="manifest" href="./manifest.json">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233b82f6'/%3E%3Cpath d='M18 33l10 10 18-22' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2300f0ff'/%3E%3Cpath d='M18 33l10 10 18-22' fill='none' stroke='%2307090f' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="./stats.js" defer></script>
   <script src="./gym.js" defer></script>
   <script src="./workouts.js" defer></script>
+  <script src="./progress.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
@@ -30,6 +34,7 @@
   <!-- Přihlášení -->
   <main id="auth-view" class="center-screen hidden">
     <section class="auth-card">
+      <div class="auth-tag">SYSTEM ACCESS</div>
       <h1>Přihlášení</h1>
       <p class="muted">Přihlas se svým účtem ze Supabase.</p>
       <form id="login-form" class="stack">
@@ -41,7 +46,7 @@
           <span>Heslo</span>
           <input id="password-input" type="password" autocomplete="current-password" required placeholder="••••••••">
         </label>
-        <button type="submit" id="login-btn" class="btn btn-primary">Přihlásit se</button>
+        <button type="submit" id="login-btn" class="btn btn-primary">Vstoupit do systému</button>
       </form>
     </section>
   </main>
@@ -51,7 +56,7 @@
     <header class="app-header">
       <div>
         <h1 id="page-title">Úkoly</h1>
-        <p id="stats-text" class="muted">0 aktivních</p>
+        <p id="stats-text" class="muted mono">0 aktivních</p>
       </div>
       <div class="header-actions">
         <button id="refresh-btn" class="btn btn-ghost" type="button" title="Synchronizovat">↻</button>
@@ -59,22 +64,41 @@
       </div>
     </header>
 
+    <!-- GAMING PLAYER HUD -->
+    <section class="hud-bar" aria-label="Stav hráče">
+      <div class="hud-left">
+        <span id="hud-level" class="hud-level mono">LVL 1</span>
+        <span id="hud-rank" class="hud-rank">IRON INITIATE</span>
+      </div>
+      <div class="hud-xp-block">
+        <div class="hud-xp-meta">
+          <span class="muted">XP PROGRES</span>
+          <span id="hud-xp-text" class="mono">0 / 150 XP</span>
+        </div>
+        <div class="hud-xp-track">
+          <div id="hud-xp-fill" class="hud-xp-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+      <div id="hud-streak" class="hud-streak mono" title="Aktuální streak">🔥 0d</div>
+    </section>
+
     <!-- Přepínač modulů -->
     <nav class="module-tabs" role="tablist">
       <button type="button" class="module-tab active" data-module="todos">Úkoly</button>
       <button type="button" class="module-tab" data-module="gym">Tělo & Strava</button>
       <button type="button" class="module-tab" data-module="workouts">Tréninky</button>
+      <button type="button" class="module-tab" data-module="progress">Progres</button>
     </nav>
 
     <!-- MODUL 1: ÚKOLY -->
     <section id="module-todos" class="module-panel">
       <form id="todo-form" class="card stack-sm">
-        <input id="title-input" type="text" placeholder="Co je potřeba udělat?" maxlength="200" required autocomplete="off">
+        <input id="title-input" type="text" placeholder="Nový quest / úkol..." maxlength="200" required autocomplete="off">
         <div class="add-controls">
           <select id="priority-input" aria-label="Priorita">
-            <option value="high">Vysoká priorita</option>
-            <option value="medium" selected>Střední priorita</option>
-            <option value="low">Nízká priorita</option>
+            <option value="high">Vysoká (+40 XP)</option>
+            <option value="medium" selected>Střední (+25 XP)</option>
+            <option value="low">Nízká (+15 XP)</option>
           </select>
           <input id="due-input" type="date" aria-label="Termín">
           <button type="submit" class="btn btn-primary">Přidat</button>
@@ -106,11 +130,10 @@
     <!-- MODUL 2: TĚLO & STRAVA -->
     <section id="module-gym" class="module-panel hidden">
       <div class="gym-top-bar">
-        <div id="profile-summary" class="muted">Nastav si výšku a cíle v profilu.</div>
+        <div id="profile-summary" class="muted mono">Nastav si výšku a cíle v profilu.</div>
         <button id="open-profile-btn" type="button" class="btn btn-ghost">⚙ Profil & Cíle</button>
       </div>
 
-      <!-- Rychlý denní zápis -->
       <form id="daily-log-form" class="card stack-sm">
         <div class="card-header-row">
           <h2>Denní zápis</h2>
@@ -165,11 +188,10 @@
         </div>
       </form>
 
-      <!-- Sekce 18 statistik -->
       <section class="stats-section">
         <div class="section-head">
           <h2>Analytika & Statistiky</h2>
-          <span id="stats-sample-info" class="muted">0 dnů v databázi</span>
+          <span id="stats-sample-info" class="muted mono">0 dnů v databázi</span>
         </div>
 
         <h3 class="group-title">Tělo a trend váhy</h3>
@@ -182,7 +204,6 @@
         <div id="stats-consistency-grid" class="kpi-grid"></div>
       </section>
 
-      <!-- Interaktivní grafy -->
       <section class="charts-section">
         <h2>Grafy (posledních 30 dní)</h2>
         <div class="charts-grid">
@@ -201,7 +222,6 @@
         </div>
       </section>
 
-      <!-- Historie záznamů -->
       <section class="card stack-sm">
         <div class="section-head">
           <h2>Historie záznamů</h2>
@@ -255,7 +275,6 @@
         </div>
       </form>
 
-      <!-- Silové statistiky (19–23) -->
       <section class="stats-section">
         <div class="section-head">
           <h2>Silová analytika</h2>
@@ -264,7 +283,6 @@
         <div id="wo-stats-grid" class="kpi-grid"></div>
       </section>
 
-      <!-- Grafy síly a objemu -->
       <section class="charts-section">
         <div class="charts-grid">
           <div class="card chart-card">
@@ -278,13 +296,36 @@
         </div>
       </section>
 
-      <!-- Historie tréninků -->
       <section class="card stack-sm">
         <div class="section-head">
           <h2>Historie tréninků</h2>
           <span class="muted">Kliknutím rozbalíš série</span>
         </div>
         <div id="wo-history-list" class="history-list"></div>
+      </section>
+    </section>
+
+    <!-- MODUL 4: PROGRES & RPG -->
+    <section id="module-progress" class="module-panel hidden">
+      <div id="prog-kpi-grid" class="kpi-grid"></div>
+
+      <section class="charts-grid prog-charts-grid">
+        <div class="card chart-card">
+          <h3>RPG Staty postavy (Radar)</h3>
+          <div class="chart-wrap chart-wrap-tall"><canvas id="rpg-radar-chart"></canvas></div>
+        </div>
+        <div class="card chart-card">
+          <h3>XP Progres (posledních 30 dní)</h3>
+          <div class="chart-wrap chart-wrap-tall"><canvas id="xp-progress-chart"></canvas></div>
+        </div>
+      </section>
+
+      <section class="card stack-sm">
+        <div class="section-head">
+          <h2>Achievementy</h2>
+          <span id="achievements-count" class="muted mono">0 / 8 odemčeno</span>
+        </div>
+        <div id="achievements-grid" class="ach-grid"></div>
       </section>
     </section>
   </main>
