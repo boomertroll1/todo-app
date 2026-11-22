@@ -57,6 +57,9 @@ window.ProgressModule = (() => {
     el.hudXpFill = document.getElementById('hud-xp-fill');
     el.hudStreak = document.getElementById('hud-streak');
 
+    el.reminderBanner = document.getElementById('daily-reminder-banner');
+    el.reminderText = document.getElementById('daily-reminder-text');
+
     el.rankShowcase = document.getElementById('rank-showcase');
     el.progKpiGrid = document.getElementById('prog-kpi-grid');
     el.achievementsGrid = document.getElementById('achievements-grid');
@@ -307,7 +310,6 @@ window.ProgressModule = (() => {
       return daily[d];
     };
 
-    // 1. Úkoly: VŽDY rovných 10 XP (priorita nepřidává nic!), podúkol 2 XP. Strop 50 XP / den.
     let completedTodos = 0;
     let completedHighTodos = 0;
     let completedSubtasks = 0;
@@ -328,7 +330,6 @@ window.ProgressModule = (() => {
       }
     });
 
-    // 2. Denní log Tělo & Strava (max 55 XP / den)
     const targetProtein = Number(profile?.target_protein_g || 160);
     const targetSteps = Number(profile?.target_steps || 10000);
     let totalSteps = 0;
@@ -356,7 +357,6 @@ window.ProgressModule = (() => {
       if (bucket) bucket.logXp = Math.min(55, pts);
     });
 
-    // 3. Tréninky (40 XP + 2 XP/série, max 80 XP / den)
     const workingSetsByWo = {};
     let workingSetsCount = 0;
     let totalTonnage = 0;
@@ -383,7 +383,6 @@ window.ProgressModule = (() => {
       }
     });
 
-    // 4. Fokus (0.5 XP/min do 3 h, pak 0.25 XP/min, max 120 XP / den)
     let totalFocusMin = 0;
     focusSessions.forEach((fs) => {
       const mins = Number(fs.minutes) || 0;
@@ -392,7 +391,6 @@ window.ProgressModule = (() => {
       if (bucket) bucket.focusMin += mins;
     });
 
-    // 5. Milníky (25 XP, max 2 / den = 50 XP / den)
     let completedMilestones = 0;
     focusSkills.forEach((sk) => {
       const ms = Array.isArray(sk.milestones) ? sk.milestones : [];
@@ -405,7 +403,6 @@ window.ProgressModule = (() => {
       });
     });
 
-    // 6. Dlouhodobé aktivity & Rutiny (vždy 10 XP/den, max 50 XP + 15 XP combo)
     const daysPerHabit = {};
     habitLogs.forEach((hl) => {
       if (!daysPerHabit[hl.habit_id]) daysPerHabit[hl.habit_id] = new Set();
@@ -414,21 +411,19 @@ window.ProgressModule = (() => {
       if (bucket) bucket.habitDoneCount++;
     });
 
-    // Bonus za „Naučeno / Hotovo navždy“: 5 XP za každý reálně odpracovaný den (min. 5 dnů, max 150 XP)
     const activeHabitsCount = habits.filter((h) => !h.is_completed).length;
     let graduatedHabitsCount = 0;
     habits.forEach((h) => {
       if (!h.is_completed) return;
       graduatedHabitsCount++;
       const uniqueDays = daysPerHabit[h.id]?.size || 0;
-      if (uniqueDays < 5) return; // Anti-abuse: méně než 5 dnů = 0 XP
+      if (uniqueDays < 5) return;
       const gradXp = Math.min(150, uniqueDays * 5);
       const dStr = (h.completed_at || '').slice(0, 10) || toDateStr(new Date());
       const bucket = ensureDay(dStr);
       if (bucket) bucket.graduationXp += gradXp;
     });
 
-    // 7. Fotky (max 1× za týden = 15 XP)
     const creditedPhotoWeeks = new Set();
     [...photos]
       .sort((a, b) => a.photo_date.localeCompare(b.photo_date))
@@ -440,7 +435,6 @@ window.ProgressModule = (() => {
         if (bucket) bucket.photoXp += 15;
       });
 
-    // Chronologické sečtení dnů + Streak multiplikátor (1.00× až 1.20×)
     const sortedDates = Object.keys(daily).sort();
     const xpByDate = {};
     let todoXpTotal = 0;
@@ -495,6 +489,7 @@ window.ProgressModule = (() => {
     });
 
     const todayStr = toDateStr(new Date());
+    const hasActivityToday = (xpByDate[todayStr] || 0) > 0;
     let globalActiveStreak = 0;
     if (prevActiveDate && daysDiffUTC(prevActiveDate, todayStr) <= 1) {
       globalActiveStreak = runningStreak;
@@ -576,6 +571,7 @@ window.ProgressModule = (() => {
     lastComputed = {
       levelInfo,
       streak: globalActiveStreak,
+      hasActivityToday,
       currentMultiplier,
       todoXp: todoXpTotal,
       logXp: logXpTotal,
@@ -602,6 +598,24 @@ window.ProgressModule = (() => {
     };
 
     return lastComputed;
+  }
+
+  function renderDailyReminder(r) {
+    if (!el.reminderBanner || !el.reminderText) return;
+    const today = toDateStr(new Date());
+    const dismissedDate = localStorage.getItem('dismissedReminderDate');
+
+    if (r.hasActivityToday || dismissedDate === today) {
+      el.reminderBanner.classList.add('hidden');
+      return;
+    }
+
+    if (r.streak > 0) {
+      el.reminderText.innerHTML = `<strong>Dneska jsi ještě nic nezapsal!</strong> Zapiš váhu, fokus nebo rutinu, ať nepřijdeš o svůj <strong>${r.streak}denní streak</strong>.`;
+    } else {
+      el.reminderText.innerHTML = `<strong>Dneska jsi ještě nic nezapsal!</strong> Zapiš denní log, odškrtni rutinu nebo zapni Fokus.`;
+    }
+    el.reminderBanner.classList.remove('hidden');
   }
 
   function renderAchievements() {
@@ -723,6 +737,8 @@ window.ProgressModule = (() => {
       el.hudStreak.textContent = `🔥 ${r.streak}d · ${r.currentMultiplier.toFixed(2)}×`;
       el.hudStreak.title = `Aktivní streak ${r.streak} dní (XP multiplikátor ${r.currentMultiplier.toFixed(2)}×)`;
     }
+
+    renderDailyReminder(r);
 
     if (el.rankShowcase) {
       el.rankShowcase.innerHTML = `
@@ -1016,6 +1032,7 @@ window.ProgressModule = (() => {
     reset() {
       user = null;
       lastComputed = null;
+      if (el.reminderBanner) el.reminderBanner.classList.add('hidden');
       dataCache = {
         todos: [],
         logs: [],

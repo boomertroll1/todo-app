@@ -4,6 +4,7 @@ const SUPABASE_KEY = 'sb_publishable_iA_J8y6ouyj67UJzZPOZfQ_KdqBCjY3';
 const state = {
   user: null,
   activeModule: localStorage.getItem('activeModule') || 'todos',
+  activeTodosTab: 'main',
   activeRanksTab: 'catalog',
   todos: [],
   filter: 'all',
@@ -27,6 +28,10 @@ const el = {
   refreshBtn: document.getElementById('refresh-btn'),
   statsText: document.getElementById('stats-text'),
 
+  reminderBanner: document.getElementById('daily-reminder-banner'),
+  reminderDismissBtn: document.getElementById('reminder-dismiss-btn'),
+  reminderGoBtns: document.querySelectorAll('[data-reminder-go]'),
+
   moduleTabs: document.querySelectorAll('.module-tab'),
   moduleTodos: document.getElementById('module-todos'),
   moduleFocus: document.getElementById('module-focus'),
@@ -35,6 +40,10 @@ const el = {
   moduleWorkouts: document.getElementById('module-workouts'),
   moduleProgress: document.getElementById('module-progress'),
   moduleRanks: document.getElementById('module-ranks'),
+
+  todosSubtabs: document.querySelectorAll('.todos-subtab'),
+  todosPanelMain: document.getElementById('todos-panel-main'),
+  todosPanelClean: document.getElementById('todos-panel-clean'),
 
   ranksSubtabs: document.querySelectorAll('.ranks-subtab'),
   ranksPanelCatalog: document.getElementById('ranks-panel-catalog'),
@@ -105,6 +114,14 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function getTodayLocal() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function daysUntil(dateStr) {
   if (!dateStr) return null;
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -147,6 +164,38 @@ function showView(name) {
   el.appView.classList.toggle('hidden', name !== 'app');
 }
 
+// --- Upozornění na nezapsaný den ---
+if (el.reminderDismissBtn) {
+  el.reminderDismissBtn.addEventListener('click', () => {
+    localStorage.setItem('dismissedReminderDate', getTodayLocal());
+    el.reminderBanner.classList.add('hidden');
+  });
+}
+
+el.reminderGoBtns.forEach((btn) => {
+  btn.addEventListener('click', () => switchModule(btn.dataset.reminderGo));
+});
+
+// --- Podzáložky v Úkolech (Úkoly & Rutiny vs. Dny bez...) ---
+function switchTodosSubtab(tabName) {
+  state.activeTodosTab = tabName;
+  el.todosSubtabs.forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.todosTab === tabName);
+  });
+  if (el.todosPanelMain) {
+    el.todosPanelMain.classList.toggle('hidden', tabName !== 'main');
+  }
+  if (el.todosPanelClean) {
+    el.todosPanelClean.classList.toggle('hidden', tabName !== 'clean');
+  }
+  if (tabName === 'clean') window.CleanModule?.refresh();
+}
+
+el.todosSubtabs.forEach((btn) => {
+  btn.addEventListener('click', () => switchTodosSubtab(btn.dataset.todosTab));
+});
+
+// --- Podzáložky v Rancích ---
 function switchRanksSubtab(tabName) {
   state.activeRanksTab = tabName;
   el.ranksSubtabs.forEach((btn) => {
@@ -179,7 +228,7 @@ function switchModule(moduleName) {
   el.moduleRanks.classList.toggle('hidden', moduleName !== 'ranks');
 
   const titles = {
-    todos: 'Úkoly & Rutiny',
+    todos: 'Úkoly & Disciplína',
     focus: 'Fokus & Dlouhodobé učení',
     calendar: 'Kalendář',
     gym: 'Tělo & Strava',
@@ -189,6 +238,7 @@ function switchModule(moduleName) {
   };
   el.pageTitle.textContent = titles[moduleName] || 'Úkoly';
 
+  if (moduleName === 'todos') switchTodosSubtab(state.activeTodosTab);
   if (moduleName === 'focus') window.FocusModule?.onShow();
   if (moduleName === 'calendar') window.CalendarModule?.onShow();
   if (moduleName === 'workouts') window.WorkoutsModule?.onShow();
@@ -309,7 +359,6 @@ function getVisibleTodos() {
     }
     if (state.sort === 'newest') return b.created_at.localeCompare(a.created_at);
 
-    // Řazení podle deadlinu (nejbližší / po termínu úplně nahoře, bez termínu až dole)
     const dueA = a.due_date || '9999-12-31';
     const dueB = b.due_date || '9999-12-31';
     if (dueA !== dueB) return dueA.localeCompare(dueB);
@@ -415,6 +464,7 @@ el.logoutBtn.addEventListener('click', async () => {
 el.refreshBtn.addEventListener('click', () => {
   fetchTodos();
   window.HabitsModule?.refresh();
+  window.CleanModule?.refresh();
   window.FocusModule?.refresh();
   window.CalendarModule?.refresh();
   window.GymModule?.refresh();
@@ -602,6 +652,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.user) {
     fetchTodos();
     window.HabitsModule?.refresh();
+    window.CleanModule?.refresh();
     window.FocusModule?.refresh();
     window.CalendarModule?.refresh();
     window.GymModule?.refresh();
@@ -616,6 +667,7 @@ function onSignedIn(user) {
   switchModule(state.activeModule);
   fetchTodos();
   window.HabitsModule?.init(db, user);
+  window.CleanModule?.init(db, user);
   window.FocusModule?.init(db, user);
   window.CalendarModule?.init(db, user);
   window.GymModule?.init(db, user);
@@ -630,6 +682,7 @@ db.auth.onAuthStateChange((_event, session) => {
     state.user = null;
     state.todos = [];
     window.HabitsModule?.reset();
+    window.CleanModule?.reset();
     window.FocusModule?.reset();
     window.CalendarModule?.reset();
     window.GymModule?.reset();

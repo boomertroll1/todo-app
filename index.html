@@ -22,6 +22,7 @@
   <script src="./calendar.js" defer></script>
   <script src="./focus.js" defer></script>
   <script src="./habits.js" defer></script>
+  <script src="./clean.js" defer></script>
   <script src="./achievements.js" defer></script>
   <script src="./progress.js" defer></script>
   <script src="./app.js" defer></script>
@@ -89,6 +90,19 @@
       <div id="hud-streak" class="hud-streak mono" title="Aktuální streak a XP multiplikátor">🔥 0d · 1.00×</div>
     </section>
 
+    <!-- UPOZORNĚNÍ: DNESKA JSI JEŠTĚ NIC NEZAPSAL -->
+    <section id="daily-reminder-banner" class="reminder-banner hidden" role="status">
+      <div class="reminder-text-wrap">
+        <span class="reminder-icon">⚠️</span>
+        <span id="daily-reminder-text">Dneska jsi ještě nic nezapsal!</span>
+      </div>
+      <div class="reminder-actions">
+        <button type="button" class="btn btn-xs btn-primary" data-reminder-go="gym">Zapsat den</button>
+        <button type="button" class="btn btn-xs btn-ghost" data-reminder-go="focus">Fokus</button>
+        <button type="button" id="reminder-dismiss-btn" class="icon-btn" title="Skrýt pro dnešek">✕</button>
+      </div>
+    </section>
+
     <!-- Přepínač modulů (7 hlavních záložek) -->
     <nav class="module-tabs" role="tablist">
       <button type="button" class="module-tab active" data-module="todos">Úkoly</button>
@@ -100,85 +114,118 @@
       <button type="button" class="module-tab" data-module="ranks">Ranky</button>
     </nav>
 
-    <!-- MODUL 1: OPAKOVANÉ DLOUHODOBÉ AKTIVITY + JEDNORÁZOVÉ ÚKOLY -->
+    <!-- MODUL 1: ÚKOLY, RUTINY & DNY BEZ... -->
     <section id="module-todos" class="module-panel">
-      <!-- Dlouhodobé opakované aktivity (Šachy, Lean 4, Kreatin) -->
-      <section class="card habits-card stack-sm">
-        <div class="card-header-row">
-          <div>
-            <h2>Opakované aktivity & Dlouhodobé učení</h2>
-            <span class="muted">Pro věci na každý den (Trénink šachů, Lean 4, Kreatin) · 10 XP/den · 🎓 Hotovo po naučení</span>
+      <div class="ranks-subtabs" role="tablist">
+        <button type="button" class="chip todos-subtab active" data-todos-tab="main">✅ Úkoly & Rutiny</button>
+        <button type="button" class="chip todos-subtab" data-todos-tab="clean">🛡️ Dny bez…</button>
+      </div>
+
+      <!-- Podpanel A: Rutiny a Jednorázové úkoly -->
+      <div id="todos-panel-main" class="stack">
+        <section class="card habits-card stack-sm">
+          <div class="card-header-row">
+            <div>
+              <h2>Opakované aktivity & Dlouhodobé učení</h2>
+              <span class="muted">Pro věci na každý den (Trénink šachů, Lean 4, Kreatin) · 10 XP/den · 🎓 Hotovo po naučení</span>
+            </div>
+            <div class="habits-meta-right">
+              <span id="habits-combo-badge" class="badge badge-date mono">100 % (min. 3) = +15 XP Combo</span>
+              <span id="habits-progress-text" class="mono muted">0 / 0 dnes</span>
+            </div>
           </div>
-          <div class="habits-meta-right">
-            <span id="habits-combo-badge" class="badge badge-date mono">100 % (min. 3) = +15 XP Combo</span>
-            <span id="habits-progress-text" class="mono muted">0 / 0 dnes</span>
+
+          <div class="subtask-progress-track">
+            <div id="habits-progress-fill" class="subtask-progress-fill" style="width: 0%;"></div>
           </div>
-        </div>
 
-        <div class="subtask-progress-track">
-          <div id="habits-progress-fill" class="subtask-progress-fill" style="width: 0%;"></div>
-        </div>
+          <div id="habits-list" class="habits-list"></div>
 
-        <div id="habits-list" class="habits-list"></div>
+          <form id="habits-add-form" class="habits-add-grid">
+            <input id="habit-name-input" type="text" maxlength="90" placeholder="+ Opakovaná aktivita (např. Trénink šachů, Učit se Lean 4)..." required>
+            <input id="habit-icon-input" type="text" maxlength="4" value="🔁" aria-label="Ikona" title="Emoji ikona">
+            <input id="habit-due-input" type="date" aria-label="Volitelný cíl do data" title="Volitelný cíl (prázdné = ∞ průběžně)">
+            <button type="submit" class="btn btn-primary">+ Přidat</button>
+          </form>
 
-        <form id="habits-add-form" class="habits-add-grid">
-          <input id="habit-name-input" type="text" maxlength="90" placeholder="+ Opakovaná aktivita (např. Trénink šachů, Učit se Lean 4)..." required>
-          <input id="habit-icon-input" type="text" maxlength="4" value="🔁" aria-label="Ikona" title="Emoji ikona">
-          <input id="habit-due-input" type="date" aria-label="Volitelný cíl do data" title="Volitelný cíl (prázdné = ∞ průběžně)">
-          <button type="submit" class="btn btn-primary">+ Přidat</button>
+          <details id="habits-completed-wrap" class="habits-archive hidden">
+            <summary class="habits-archive-summary">
+              <span>🎓 Zvládnuto / Naučeno navždy (<span id="habits-completed-count">0</span>)</span>
+            </summary>
+            <div id="habits-completed-list" class="habits-list" style="margin-top:8px;"></div>
+          </details>
+        </section>
+
+        <form id="todo-form" class="card stack-sm">
+          <div class="card-header-row">
+            <div>
+              <h2>Jednorázové úkoly & Termíny</h2>
+              <span class="muted">Priorita roste automaticky podle blízkosti deadlinu</span>
+            </div>
+            <span class="muted mono">10 XP / úkol · Cap 50 XP / d</span>
+          </div>
+          <input id="title-input" type="text" placeholder="Např. Do pátku poslat úkol z analýzy..." maxlength="200" required autocomplete="off">
+          <div class="add-controls">
+            <input id="due-input" type="date" aria-label="Deadline" title="Do kdy to musí být hotové (čím blíž, tím víc svítí)">
+            <button type="submit" class="btn btn-primary">Přidat</button>
+          </div>
+
+          <div class="subtask-builder">
+            <div class="subtask-input-row">
+              <input id="subtask-draft-input" type="text" placeholder="+ Přidat podúkol (volitelné, +2 XP za každý)..." maxlength="140" autocomplete="off">
+              <button type="button" id="add-subtask-draft-btn" class="btn btn-ghost">+ Krok</button>
+            </div>
+            <ul id="subtask-draft-list" class="subtask-draft-list"></ul>
+          </div>
         </form>
 
-        <details id="habits-completed-wrap" class="habits-archive hidden">
-          <summary class="habits-archive-summary">
-            <span>🎓 Zvládnuto / Naučeno navždy (<span id="habits-completed-count">0</span>)</span>
-          </summary>
-          <div id="habits-completed-list" class="habits-list" style="margin-top:8px;"></div>
-        </details>
-      </section>
-
-      <!-- Jednorázové úkoly s deadlinem -->
-      <form id="todo-form" class="card stack-sm">
-        <div class="card-header-row">
-          <div>
-            <h2>Jednorázové úkoly & Termíny</h2>
-            <span class="muted">Priorita roste automaticky podle blízkosti deadlinu</span>
+        <section class="toolbar">
+          <div class="filter-group" role="tablist">
+            <button type="button" class="chip active" data-filter="all">Vše</button>
+            <button type="button" class="chip" data-filter="active">Aktivní</button>
+            <button type="button" class="chip" data-filter="completed">Hotové</button>
           </div>
-          <span class="muted mono">10 XP / úkol · Cap 50 XP / d</span>
-        </div>
-        <input id="title-input" type="text" placeholder="Např. Do pátku poslat úkol z analýzy..." maxlength="200" required autocomplete="off">
-        <div class="add-controls">
-          <input id="due-input" type="date" aria-label="Deadline" title="Do kdy to musí být hotové (čím blíž, tím víc svítí)">
-          <button type="submit" class="btn btn-primary">Přidat</button>
-        </div>
-
-        <div class="subtask-builder">
-          <div class="subtask-input-row">
-            <input id="subtask-draft-input" type="text" placeholder="+ Přidat podúkol (volitelné, +2 XP za každý)..." maxlength="140" autocomplete="off">
-            <button type="button" id="add-subtask-draft-btn" class="btn btn-ghost">+ Krok</button>
+          <div class="toolbar-right">
+            <select id="sort-select" aria-label="Řazení">
+              <option value="due">Podle deadlinu (urgence)</option>
+              <option value="newest">Nejnovější</option>
+            </select>
+            <button id="clear-completed-btn" type="button" class="btn btn-danger-ghost hidden">
+              Smazat hotové
+            </button>
           </div>
-          <ul id="subtask-draft-list" class="subtask-draft-list"></ul>
-        </div>
-      </form>
+        </section>
 
-      <section class="toolbar">
-        <div class="filter-group" role="tablist">
-          <button type="button" class="chip active" data-filter="all">Vše</button>
-          <button type="button" class="chip" data-filter="active">Aktivní</button>
-          <button type="button" class="chip" data-filter="completed">Hotové</button>
-        </div>
-        <div class="toolbar-right">
-          <select id="sort-select" aria-label="Řazení">
-            <option value="due">Podle deadlinu (urgence)</option>
-            <option value="newest">Nejnovější</option>
-          </select>
-          <button id="clear-completed-btn" type="button" class="btn btn-danger-ghost hidden">
-            Smazat hotové
-          </button>
-        </div>
-      </section>
+        <ul id="todo-list" class="todo-list"></ul>
+        <p id="empty-state" class="empty-state hidden">Žádné úkoly k zobrazení.</p>
+      </div>
 
-      <ul id="todo-list" class="todo-list"></ul>
-      <p id="empty-state" class="empty-state hidden">Žádné úkoly k zobrazení.</p>
+      <!-- Podpanel B: Dny bez... (Streak + roční mřížka kostiček) -->
+      <div id="todos-panel-clean" class="stack hidden">
+        <form id="clean-add-form" class="card stack-sm">
+          <div class="card-header-row">
+            <div>
+              <h2>Dny bez… (Disciplína & Abstinence)</h2>
+              <span class="muted">Dny od startu se barví zeleně samy · Klikni jen při selhání (kostička zčervená)</span>
+            </div>
+            <div class="cal-nav">
+              <button type="button" id="clean-prev-year" class="btn btn-ghost">◀</button>
+              <span id="clean-year-label" class="focus-year-pill mono">2026</span>
+              <button type="button" id="clean-next-year" class="btn btn-ghost">▶</button>
+            </div>
+          </div>
+
+          <div class="clean-add-grid">
+            <input id="clean-name-input" type="text" maxlength="60" placeholder="Např. Bez reels, Bez porna, Bez cukru..." required>
+            <input id="clean-icon-input" type="text" maxlength="4" value="🛡️" aria-label="Ikona" title="Emoji ikona">
+            <input id="clean-color-input" type="color" value="#10b981" aria-label="Barva čistých dnů" title="Barva čistých dnů">
+            <input id="clean-start-input" type="date" aria-label="Datum startu" title="Od kdy sledovat" required>
+            <button type="submit" class="btn btn-primary">+ Přidat</button>
+          </div>
+        </form>
+
+        <div id="clean-trackers-list" class="stack"></div>
+      </div>
     </section>
 
     <!-- MODUL 2: FOKUS, DLOUHODOBÉ UČENÍ & HEATMAPY -->
@@ -525,7 +572,6 @@
         <button type="button" class="chip ranks-subtab" data-ranks-tab="xp-guide">📘 Jak fungují XP</button>
       </div>
 
-      <!-- Podpanel A: Katalog nekonečných ranků -->
       <div id="ranks-panel-catalog" class="stack">
         <section id="ranks-hero" class="card rank-showcase"></section>
 
@@ -543,7 +589,6 @@
         </section>
       </div>
 
-      <!-- Podpanel B: Manuál Anti-Abuse XP systému -->
       <div id="ranks-panel-xp-guide" class="stack hidden">
         <section class="card stack-sm">
           <h2>Pravidla XP & Anti-Abuse limity</h2>

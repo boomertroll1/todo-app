@@ -2168,3 +2168,104 @@ select:focus {
 .xp-rule-card strong {
   color: var(--text);
 }
+/* === UPOZORNĚNÍ NA NEZAPSANÝ DEN & SEKCE "DNY BEZ..." === */
+.reminder-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(17, 22, 34, 0.92));
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.16);
+}
+
+.reminder-text-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: #fde68a;
+}
+
+.reminder-text-wrap strong {
+  color: #ffffff;
+}
+
+.reminder-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clean-add-grid {
+  display: grid;
+  grid-template-columns: 1.8fr 58px 54px 140px auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.clean-add-grid input[type="color"] {
+  height: 40px;
+  padding: 3px;
+  background: rgba(7, 9, 15, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.clean-streak-pill {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
+}
+
+.clean-streak-pill.active {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.btn-relapse {
+  background: rgba(255, 71, 87, 0.12);
+  color: #ff8a96;
+  border: 1px solid rgba(255, 71, 87, 0.35);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.btn-relapse:hover {
+  background: rgba(255, 71, 87, 0.25);
+}
+
+.btn-relapse.is-relapsed {
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.hm-cell.hm-inactive {
+  cursor: default;
+  opacity: 0.55;
+}
+
+@media (max-width: 760px) {
+  .clean-add-grid {
+    grid-template-columns: 1fr 58px 54px;
+  }
+  .clean-add-grid input[type="date"] {
+    grid-column: span 2;
+  }
+}
