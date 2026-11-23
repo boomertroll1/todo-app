@@ -2361,3 +2361,62 @@ select:focus {
   transform: scale(1.06);
   border-color: var(--cyan);
 }
+/* === 6 HLAVNÍCH ZÁLOŽEK & ZVÝRAZNĚNÁ KOLONKA PRO FOTKY === */
+.module-tabs {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.attachment-builder {
+  border: 1.5px dashed rgba(0, 240, 255, 0.55);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.08), rgba(139, 92, 246, 0.08));
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.12);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.attachment-builder:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 22px rgba(0, 240, 255, 0.24);
+}
+
+.att-upload-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.22), rgba(99, 102, 241, 0.28));
+  border: 1px solid var(--cyan);
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.22);
+  transition: filter 0.15s, transform 0.12s;
+}
+
+.att-upload-label:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.att-hint {
+  font-size: 0.78rem;
+  color: #cbd5e1;
+}
+
+.photo-upload-highlight {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1.5px dashed rgba(0, 240, 255, 0.5);
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.07), rgba(139, 92, 246, 0.08));
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.12);
+}
+
+@media (max-width: 760px) {
+  .module-tabs {
+    grid-template-columns: repeat(6, minmax(78px, 1fr));
+    overflow-x: auto;
+  }
+}

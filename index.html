@@ -103,10 +103,9 @@
       </div>
     </section>
 
-    <!-- Přepínač modulů (7 hlavních záložek) -->
+    <!-- Přepínač modulů (6 hlavních záložek) -->
     <nav class="module-tabs" role="tablist">
       <button type="button" class="module-tab active" data-module="todos">Úkoly</button>
-      <button type="button" class="module-tab" data-module="focus">Fokus</button>
       <button type="button" class="module-tab" data-module="calendar">Kalendář</button>
       <button type="button" class="module-tab" data-module="gym">Tělo & Strava</button>
       <button type="button" class="module-tab" data-module="workouts">Tréninky</button>
@@ -114,10 +113,11 @@
       <button type="button" class="module-tab" data-module="ranks">Ranky</button>
     </nav>
 
-    <!-- MODUL 1: ÚKOLY, RUTINY & DNY BEZ... -->
+    <!-- MODUL 1: ÚKOLY, FOKUS & DNY BEZ... -->
     <section id="module-todos" class="module-panel">
       <div class="ranks-subtabs" role="tablist">
         <button type="button" class="chip todos-subtab active" data-todos-tab="main">✅ Úkoly & Rutiny</button>
+        <button type="button" class="chip todos-subtab" data-todos-tab="focus">⏱️ Fokus & Dlouhodobé</button>
         <button type="button" class="chip todos-subtab" data-todos-tab="clean">🛡️ Dny bez…</button>
       </div>
 
@@ -126,8 +126,8 @@
         <section class="card habits-card stack-sm">
           <div class="card-header-row">
             <div>
-              <h2>Opakované aktivity & Dlouhodobé učení</h2>
-              <span class="muted">Pro věci na každý den (Trénink šachů, Lean 4, Kreatin) · 10 XP/den · 🎓 Hotovo po naučení</span>
+              <h2>Denní rutiny</h2>
+              <span class="muted">Rychlé odškrtnutí každý den (Kreatin, 10k kroků, Strečink) · 10 XP/den</span>
             </div>
             <div class="habits-meta-right">
               <span id="habits-combo-badge" class="badge badge-date mono">100 % (min. 3) = +15 XP Combo</span>
@@ -142,7 +142,7 @@
           <div id="habits-list" class="habits-list"></div>
 
           <form id="habits-add-form" class="habits-add-grid">
-            <input id="habit-name-input" type="text" maxlength="90" placeholder="+ Opakovaná aktivita (např. Trénink šachů, Učit se Lean 4)..." required>
+            <input id="habit-name-input" type="text" maxlength="90" placeholder="+ Denní rutina (např. Kreatin, 10k kroků, Šachy)..." required>
             <input id="habit-icon-input" type="text" maxlength="4" value="🔁" aria-label="Ikona" title="Emoji ikona">
             <input id="habit-due-input" type="date" aria-label="Volitelný cíl do data" title="Volitelný cíl (prázdné = ∞ průběžně)">
             <button type="submit" class="btn btn-primary">+ Přidat</button>
@@ -150,7 +150,7 @@
 
           <details id="habits-completed-wrap" class="habits-archive hidden">
             <summary class="habits-archive-summary">
-              <span>🎓 Zvládnuto / Naučeno navždy (<span id="habits-completed-count">0</span>)</span>
+              <span>🎓 Zvládnuto / Hotovo navždy (<span id="habits-completed-count">0</span>)</span>
             </summary>
             <div id="habits-completed-list" class="habits-list" style="margin-top:8px;"></div>
           </details>
@@ -178,12 +178,12 @@
             <ul id="subtask-draft-list" class="subtask-draft-list"></ul>
           </div>
 
-          <!-- Přikládání fotek / zadání k úkolu -->
+          <!-- Zvýrazněná kolonka pro fotky / zadání k úkolu -->
           <div class="attachment-builder">
             <div class="attachment-bar">
               <input id="todo-photo-input" type="file" accept="image/*" multiple class="hidden">
-              <label for="todo-photo-input" class="btn btn-ghost btn-xs att-upload-label">📎 Přiložit fotku / zadání</label>
-              <span class="muted" style="font-size:0.76rem;">nebo vlož screenshot přes <span class="mono">Ctrl+V</span> (max 6)</span>
+              <label for="todo-photo-input" class="att-upload-label">📸 Přidat fotku / zadání</label>
+              <span class="att-hint">Vyber z galerie nebo vlož screenshot přes <span class="mono">Ctrl+V</span> (max 6)</span>
             </div>
             <div id="todo-photo-draft-list" class="attachment-preview-row"></div>
           </div>
@@ -210,7 +210,61 @@
         <p id="empty-state" class="empty-state hidden">Žádné úkoly k zobrazení.</p>
       </div>
 
-      <!-- Podpanel B: Dny bez... (Streak + roční mřížka kostiček) -->
+      <!-- Podpanel B: Fokus, Dlouhodobé učení & Roční heatmapy (přesunuto sem) -->
+      <div id="todos-panel-focus" class="stack hidden">
+        <div id="focus-summary-bar" class="kpi-grid"></div>
+
+        <section class="card timer-card stack-sm">
+          <div class="card-header-row">
+            <h2>Deep Work Časovač (0.5 XP/min do 3h, cap 120 XP/d)</h2>
+            <div class="filter-group">
+              <button type="button" class="chip timer-mode-chip active" data-timer-mode="stopwatch">Stopky</button>
+              <button type="button" class="chip timer-mode-chip" data-timer-mode="countdown">Odpočet</button>
+            </div>
+          </div>
+
+          <div class="timer-top-controls">
+            <select id="timer-skill-select" aria-label="Vyber aktivitu"></select>
+            <div id="timer-preset-row" class="filter-group hidden">
+              <button type="button" class="chip timer-preset-chip" data-timer-min="25">25m</button>
+              <button type="button" class="chip timer-preset-chip active" data-timer-min="45">45m</button>
+              <button type="button" class="chip timer-preset-chip" data-timer-min="60">60m</button>
+              <button type="button" class="chip timer-preset-chip" data-timer-min="90">90m</button>
+            </div>
+          </div>
+
+          <div id="timer-display" class="timer-display mono">00:00</div>
+
+          <div class="timer-actions">
+            <button type="button" id="timer-start-btn" class="btn btn-primary">▶ Start</button>
+            <button type="button" id="timer-stop-save-btn" class="btn btn-ghost" disabled>✓ Uložit čas</button>
+            <button type="button" id="timer-reset-btn" class="btn btn-danger-ghost">↺ Reset</button>
+          </div>
+        </section>
+
+        <form id="focus-add-skill-form" class="card stack-sm">
+          <div class="card-header-row">
+            <h2>Dlouhodobé učení, Skilly & Roční heatmapy</h2>
+            <div class="cal-nav">
+              <button type="button" id="focus-prev-year" class="btn btn-ghost">◀</button>
+              <span id="focus-year-label" class="focus-year-pill mono">2026</span>
+              <button type="button" id="focus-next-year" class="btn btn-ghost">▶</button>
+            </div>
+          </div>
+
+          <div class="focus-add-grid">
+            <input id="focus-skill-name" type="text" maxlength="50" placeholder="Nová aktivita (např. Lean 4, Analýza, Python, Šachy)..." required>
+            <input id="focus-skill-icon" type="text" maxlength="4" value="💻" aria-label="Ikona" title="Emoji ikona">
+            <input id="focus-skill-color" type="color" value="#00f0ff" aria-label="Barva heatmapy" title="Barva heatmapy">
+            <input id="focus-skill-goal" type="number" min="5" max="600" value="30" placeholder="Cíl (min/d)" title="Denní cíl v minutách">
+            <button type="submit" class="btn btn-primary">+ Přidat</button>
+          </div>
+        </form>
+
+        <div id="focus-skills-list" class="stack"></div>
+      </div>
+
+      <!-- Podpanel C: Dny bez... (Streak + roční mřížka kostiček) -->
       <div id="todos-panel-clean" class="stack hidden">
         <form id="clean-add-form" class="card stack-sm">
           <div class="card-header-row">
@@ -238,61 +292,7 @@
       </div>
     </section>
 
-    <!-- MODUL 2: FOKUS, DLOUHODOBÉ UČENÍ & HEATMAPY -->
-    <section id="module-focus" class="module-panel hidden">
-      <div id="focus-summary-bar" class="kpi-grid"></div>
-
-      <section class="card timer-card stack-sm">
-        <div class="card-header-row">
-          <h2>Deep Work Časovač (0.5 XP/min do 3h, cap 120 XP/d)</h2>
-          <div class="filter-group">
-            <button type="button" class="chip timer-mode-chip active" data-timer-mode="stopwatch">Stopky</button>
-            <button type="button" class="chip timer-mode-chip" data-timer-mode="countdown">Odpočet</button>
-          </div>
-        </div>
-
-        <div class="timer-top-controls">
-          <select id="timer-skill-select" aria-label="Vyber aktivitu"></select>
-          <div id="timer-preset-row" class="filter-group hidden">
-            <button type="button" class="chip timer-preset-chip" data-timer-min="25">25m</button>
-            <button type="button" class="chip timer-preset-chip active" data-timer-min="45">45m</button>
-            <button type="button" class="chip timer-preset-chip" data-timer-min="60">60m</button>
-            <button type="button" class="chip timer-preset-chip" data-timer-min="90">90m</button>
-          </div>
-        </div>
-
-        <div id="timer-display" class="timer-display mono">00:00</div>
-
-        <div class="timer-actions">
-          <button type="button" id="timer-start-btn" class="btn btn-primary">▶ Start</button>
-          <button type="button" id="timer-stop-save-btn" class="btn btn-ghost" disabled>✓ Uložit čas</button>
-          <button type="button" id="timer-reset-btn" class="btn btn-danger-ghost">↺ Reset</button>
-        </div>
-      </section>
-
-      <form id="focus-add-skill-form" class="card stack-sm">
-        <div class="card-header-row">
-          <h2>Dlouhodobé učení, Skilly & Roční heatmapy</h2>
-          <div class="cal-nav">
-            <button type="button" id="focus-prev-year" class="btn btn-ghost">◀</button>
-            <span id="focus-year-label" class="focus-year-pill mono">2026</span>
-            <button type="button" id="focus-next-year" class="btn btn-ghost">▶</button>
-          </div>
-        </div>
-
-        <div class="focus-add-grid">
-          <input id="focus-skill-name" type="text" maxlength="50" placeholder="Nová aktivita (např. Lean 4, Analýza, Python, Šachy)..." required>
-          <input id="focus-skill-icon" type="text" maxlength="4" value="💻" aria-label="Ikona" title="Emoji ikona">
-          <input id="focus-skill-color" type="color" value="#00f0ff" aria-label="Barva heatmapy" title="Barva heatmapy">
-          <input id="focus-skill-goal" type="number" min="5" max="600" value="30" placeholder="Cíl (min/d)" title="Denní cíl v minutách">
-          <button type="submit" class="btn btn-primary">+ Přidat</button>
-        </div>
-      </form>
-
-      <div id="focus-skills-list" class="stack"></div>
-    </section>
-
-    <!-- MODUL 3: KALENDÁŘ -->
+    <!-- MODUL 2: KALENDÁŘ -->
     <section id="module-calendar" class="module-panel hidden">
       <section class="card stack-sm">
         <div class="cal-header">
@@ -324,7 +324,7 @@
       </section>
     </section>
 
-    <!-- MODUL 4: TĚLO & STRAVA -->
+    <!-- MODUL 3: TĚLO & STRAVA -->
     <section id="module-gym" class="module-panel hidden">
       <div class="gym-top-bar">
         <div id="profile-summary" class="muted mono">Nastav si výšku a cíle v profilu.</div>
@@ -428,7 +428,7 @@
       </section>
     </section>
 
-    <!-- MODUL 5: TRÉNINKY & SÍLA -->
+    <!-- MODUL 4: TRÉNINKY & SÍLA -->
     <section id="module-workouts" class="module-panel hidden">
       <form id="workout-form" class="card stack-sm">
         <div class="card-header-row">
@@ -502,7 +502,7 @@
       </section>
     </section>
 
-    <!-- MODUL 6: PROGRES, ACHIEVEMENTY (143) & FOTKY -->
+    <!-- MODUL 5: PROGRES, ACHIEVEMENTY (143) & FOTKY -->
     <section id="module-progress" class="module-panel hidden">
       <section id="rank-showcase" class="card rank-showcase"></section>
 
@@ -521,11 +521,11 @@
 
       <section class="card stack-sm">
         <div class="section-head">
-          <h2>Fotogalerie & Progres</h2>
+          <h2>📸 Fotogalerie & Progres</h2>
           <span class="muted">+15 XP (max 1 bodovaná fotka za týden)</span>
         </div>
 
-        <form id="photo-upload-form" class="photo-upload-grid">
+        <form id="photo-upload-form" class="photo-upload-grid photo-upload-highlight">
           <input id="photo-file-input" type="file" accept="image/*" required>
           <input id="photo-date-input" type="date" required>
           <select id="photo-category-input" aria-label="Kategorie fotky">
@@ -575,7 +575,7 @@
       </section>
     </section>
 
-    <!-- MODUL 7: RANKY + PODZÁLOŽKA JAK FUNGUJÍ XP -->
+    <!-- MODUL 6: RANKY + PODZÁLOŽKA JAK FUNGUJÍ XP -->
     <section id="module-ranks" class="module-panel hidden">
       <div class="ranks-subtabs" role="tablist">
         <button type="button" class="chip ranks-subtab active" data-ranks-tab="catalog">🏆 Katalog Ranků</button>
@@ -617,7 +617,7 @@
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>🔁 Opakované aktivity</span>
+                <span>🔁 Denní rutiny</span>
                 <span class="badge badge-gym mono">Cap 50 + 15 XP / den</span>
               </div>
               <p class="muted"><strong>10 XP</strong> za denní odškrtnutí. Při splnění <strong>100 % dne</strong> (min. 3 aktivní rutiny) získáš <strong>+15 XP combo</strong>. Uzavření cíle (🎓 Hotovo) dá <strong>5 XP × odpracované dny</strong> (min. 5 dnů, max 150 XP).</p>
@@ -702,12 +702,11 @@
         </div>
         <ul id="edit-subtask-list" class="subtask-draft-list"></ul>
       </div>
-      <div class="stack-sm">
-        <span class="field"><span>Přiložené fotky / zadání</span></span>
+      <div class="attachment-builder">
         <div class="attachment-bar">
           <input id="edit-photo-input" type="file" accept="image/*" multiple class="hidden">
-          <label for="edit-photo-input" class="btn btn-ghost btn-xs att-upload-label">📎 Přidat fotku</label>
-          <span class="muted" style="font-size:0.74rem;">nebo <span class="mono">Ctrl+V</span></span>
+          <label for="edit-photo-input" class="att-upload-label">📸 Přidat fotku</label>
+          <span class="att-hint">nebo <span class="mono">Ctrl+V</span></span>
         </div>
         <div id="edit-photo-list" class="attachment-preview-row"></div>
       </div>

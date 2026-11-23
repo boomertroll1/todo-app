@@ -36,7 +36,6 @@ const el = {
 
   moduleTabs: document.querySelectorAll('.module-tab'),
   moduleTodos: document.getElementById('module-todos'),
-  moduleFocus: document.getElementById('module-focus'),
   moduleCalendar: document.getElementById('module-calendar'),
   moduleGym: document.getElementById('module-gym'),
   moduleWorkouts: document.getElementById('module-workouts'),
@@ -45,6 +44,7 @@ const el = {
 
   todosSubtabs: document.querySelectorAll('.todos-subtab'),
   todosPanelMain: document.getElementById('todos-panel-main'),
+  todosPanelFocus: document.getElementById('todos-panel-focus'),
   todosPanelClean: document.getElementById('todos-panel-clean'),
 
   ranksSubtabs: document.querySelectorAll('.ranks-subtab'),
@@ -215,18 +215,17 @@ el.reminderGoBtns.forEach((btn) => {
   btn.addEventListener('click', () => switchModule(btn.dataset.reminderGo));
 });
 
-// --- Podzáložky v Úkolech ---
+// --- Podzáložky v Úkolech (Úkoly & Rutiny / Fokus & Dlouhodobé / Dny bez...) ---
 function switchTodosSubtab(tabName) {
   state.activeTodosTab = tabName;
   el.todosSubtabs.forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.todosTab === tabName);
   });
-  if (el.todosPanelMain) {
-    el.todosPanelMain.classList.toggle('hidden', tabName !== 'main');
-  }
-  if (el.todosPanelClean) {
-    el.todosPanelClean.classList.toggle('hidden', tabName !== 'clean');
-  }
+  if (el.todosPanelMain) el.todosPanelMain.classList.toggle('hidden', tabName !== 'main');
+  if (el.todosPanelFocus) el.todosPanelFocus.classList.toggle('hidden', tabName !== 'focus');
+  if (el.todosPanelClean) el.todosPanelClean.classList.toggle('hidden', tabName !== 'clean');
+
+  if (tabName === 'focus') window.FocusModule?.onShow();
   if (tabName === 'clean') window.CleanModule?.refresh();
 }
 
@@ -240,12 +239,8 @@ function switchRanksSubtab(tabName) {
   el.ranksSubtabs.forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.ranksTab === tabName);
   });
-  if (el.ranksPanelCatalog) {
-    el.ranksPanelCatalog.classList.toggle('hidden', tabName !== 'catalog');
-  }
-  if (el.ranksPanelXpGuide) {
-    el.ranksPanelXpGuide.classList.toggle('hidden', tabName !== 'xp-guide');
-  }
+  if (el.ranksPanelCatalog) el.ranksPanelCatalog.classList.toggle('hidden', tabName !== 'catalog');
+  if (el.ranksPanelXpGuide) el.ranksPanelXpGuide.classList.toggle('hidden', tabName !== 'xp-guide');
 }
 
 el.ranksSubtabs.forEach((btn) => {
@@ -253,13 +248,21 @@ el.ranksSubtabs.forEach((btn) => {
 });
 
 function switchModule(moduleName) {
+  // Přesměrování starého odkazu 'focus' přímo do podzáložky Fokus v Úkolech
+  if (moduleName === 'focus') {
+    state.activeTodosTab = 'focus';
+    moduleName = 'todos';
+  }
+
+  const validModules = ['todos', 'calendar', 'gym', 'workouts', 'progress', 'ranks'];
+  if (!validModules.includes(moduleName)) moduleName = 'todos';
+
   state.activeModule = moduleName;
   localStorage.setItem('activeModule', moduleName);
   el.moduleTabs.forEach((tab) => {
     tab.classList.toggle('active', tab.dataset.module === moduleName);
   });
   el.moduleTodos.classList.toggle('hidden', moduleName !== 'todos');
-  el.moduleFocus.classList.toggle('hidden', moduleName !== 'focus');
   el.moduleCalendar.classList.toggle('hidden', moduleName !== 'calendar');
   el.moduleGym.classList.toggle('hidden', moduleName !== 'gym');
   el.moduleWorkouts.classList.toggle('hidden', moduleName !== 'workouts');
@@ -267,8 +270,7 @@ function switchModule(moduleName) {
   el.moduleRanks.classList.toggle('hidden', moduleName !== 'ranks');
 
   const titles = {
-    todos: 'Úkoly & Disciplína',
-    focus: 'Fokus & Dlouhodobé učení',
+    todos: 'Úkoly, Fokus & Disciplína',
     calendar: 'Kalendář',
     gym: 'Tělo & Strava',
     workouts: 'Tréninky & Síla',
@@ -278,7 +280,6 @@ function switchModule(moduleName) {
   el.pageTitle.textContent = titles[moduleName] || 'Úkoly';
 
   if (moduleName === 'todos') switchTodosSubtab(state.activeTodosTab);
-  if (moduleName === 'focus') window.FocusModule?.onShow();
   if (moduleName === 'calendar') window.CalendarModule?.onShow();
   if (moduleName === 'workouts') window.WorkoutsModule?.onShow();
   if (moduleName === 'progress') window.ProgressModule?.onShow();
@@ -382,7 +383,6 @@ if (el.editPhotoList) {
   });
 }
 
-// Vkládání screenshotu přes Ctrl+V do nového úkolu i do editačního dialogu
 function extractClipboardImages(e) {
   const items = e.clipboardData?.items;
   if (!items) return [];
@@ -698,7 +698,6 @@ el.todoList.addEventListener('click', async (e) => {
   const todo = state.todos.find((t) => t.id === id);
   if (!todo) return;
 
-  // Zvětšení přiložené fotky v Lightboxu
   if (e.target.classList.contains('todo-att-thumb')) {
     const idx = Number(e.target.dataset.attIdx);
     const att = (todo.attachments || [])[idx];
