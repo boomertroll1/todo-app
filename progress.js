@@ -368,15 +368,27 @@ window.ProgressModule = (() => {
       if (bucket) bucket.remindersDone++;
     });
 
-    // 2. Denní log Tělo & Strava (cap 55 XP / den)
+    // 2. Denní log Tělo & Strava (cap 55 XP / den; samotný Rest day bez dat dává 0 XP)
     const targetProtein = Number(profile?.target_protein_g || 160);
     const targetSteps = Number(profile?.target_steps || 10000);
     let totalSteps = 0;
     let maxStepsDay = 0;
     let proteinHitDays = 0;
     let goodSleepDays = 0;
+    let realLogDays = 0;
 
     logs.forEach((l) => {
+      const hasAnyMetric =
+        l.weight_kg != null ||
+        l.kcal != null ||
+        l.protein_g != null ||
+        l.carbs_g != null ||
+        l.fat_g != null ||
+        l.steps != null ||
+        l.sleep_hours != null;
+      if (!hasAnyMetric) return;
+      realLogDays++;
+
       let pts = 15;
       if (l.protein_g != null && Number(l.protein_g) >= targetProtein) {
         pts += 15;
@@ -654,7 +666,7 @@ window.ProgressModule = (() => {
           completedTodos,
           completedSubtasks,
           completedHighTodos,
-          totalLogDays: logs.length,
+          totalLogDays: realLogDays,
           proteinHitDays,
           goodSleepDays,
           longestStreak: Math.max(gymStats.longestStreak || 0, globalActiveStreak),

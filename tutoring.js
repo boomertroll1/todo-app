@@ -124,18 +124,20 @@ window.TutoringModule = (() => {
         const isOverdue = !l.is_completed && l.lesson_date < today;
         const urgCls = isOverdue ? 'urgency-overdue' : isToday ? 'urgency-today' : '';
         const timeStr = l.start_time ? ` · ${escapeHtml(l.start_time)}` : '';
+        const xpVal = Math.min(90, Math.round((Number(l.duration_min) || 60) * 0.5));
         const priceBadge = l.price_czk
           ? `<span class="badge badge-low mono">${Number(l.price_czk).toLocaleString('cs-CZ')} Kč</span>`
           : '';
 
         return `
           <div class="tutor-item ${l.is_completed ? 'done' : ''} ${urgCls}" data-tutor-id="${l.id}">
-            <input type="checkbox" class="todo-checkbox tutor-check" ${l.is_completed ? 'checked' : ''} title="Označit lekci jako odučenou (+0.5 XP/min)">
+            <input type="checkbox" class="todo-checkbox tutor-check" ${l.is_completed ? 'checked' : ''} title="Označit lekci jako odučenou (+${xpVal} XP)">
             <div class="tutor-content">
               <div class="tutor-title-row">
                 <span class="tutor-student">${escapeHtml(l.student_name)}</span>
                 <span class="badge badge-cardio">${escapeHtml(l.subject)}</span>
                 <span class="badge badge-gym mono">${formatDuration(l.duration_min)}</span>
+                <span class="badge badge-medium mono">+${xpVal} XP</span>
                 ${priceBadge}
               </div>
               <div class="tutor-meta mono">
@@ -187,6 +189,7 @@ window.TutoringModule = (() => {
         window.appShowToast(`Doučování (${student} · ${subject}) uloženo.`);
         await loadAll();
         window.CalendarModule?.refresh();
+        window.ScheduleModule?.refresh();
         window.ProgressModule?.refresh();
       });
     }
@@ -211,6 +214,7 @@ window.TutoringModule = (() => {
           }
           await loadAll();
           window.CalendarModule?.refresh();
+          window.ScheduleModule?.refresh();
           window.ProgressModule?.refresh();
           return;
         }
@@ -218,7 +222,9 @@ window.TutoringModule = (() => {
         if (e.target.classList.contains('tutor-check')) {
           const item = e.target.closest('.tutor-item');
           const id = item.dataset.tutorId;
+          const lesson = lessons.find((l) => l.id === id);
           const checked = e.target.checked;
+
           const { error } = await db
             .from('tutoring_sessions')
             .update({ is_completed: checked })
@@ -229,8 +235,19 @@ window.TutoringModule = (() => {
             e.target.checked = !checked;
             return;
           }
+
+          if (checked && lesson) {
+            const xpVal = Math.min(90, Math.round((Number(lesson.duration_min) || 60) * 0.5));
+            if (lesson.lesson_date > todayStr()) {
+              window.appShowToast('Lekce odučena (XP se započítají v den lekce).');
+            } else {
+              window.appShowToast(`Lekce odučena (+${xpVal} XP · cap 90 XP/den).`);
+            }
+          }
+
           await loadAll();
           window.CalendarModule?.refresh();
+          window.ScheduleModule?.refresh();
           window.ProgressModule?.refresh();
         }
       });

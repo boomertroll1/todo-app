@@ -284,7 +284,10 @@ function switchModule(moduleName) {
 
   if (moduleName === 'todos') switchTodosSubtab(state.activeTodosTab);
   if (moduleName === 'calendar') window.CalendarModule?.onShow();
-  if (moduleName === 'workouts') window.WorkoutsModule?.onShow();
+  if (moduleName === 'workouts') {
+    window.WorkoutsModule?.onShow();
+    window.RestDayModule?.refresh();
+  }
   if (moduleName === 'progress') window.ProgressModule?.onShow();
   if (moduleName === 'ranks') {
     switchRanksSubtab(state.activeRanksTab);
@@ -646,6 +649,7 @@ el.refreshBtn.addEventListener('click', () => {
   window.CalendarModule?.refresh();
   window.GymModule?.refresh();
   window.WorkoutsModule?.refresh();
+  window.RestDayModule?.refresh();
   window.ProgressModule?.refresh();
   showToast('Systém synchronizován.');
 });
@@ -861,6 +865,7 @@ document.addEventListener('visibilitychange', () => {
     window.CalendarModule?.refresh();
     window.GymModule?.refresh();
     window.WorkoutsModule?.refresh();
+    window.RestDayModule?.refresh();
     window.ProgressModule?.refresh();
   }
 });
@@ -878,6 +883,7 @@ function onSignedIn(user) {
   window.CalendarModule?.init(db, user);
   window.GymModule?.init(db, user);
   window.WorkoutsModule?.init(db, user);
+  window.RestDayModule?.init(db, user);
   window.ProgressModule?.init(db, user);
 }
 
@@ -895,6 +901,7 @@ db.auth.onAuthStateChange((_event, session) => {
     window.CalendarModule?.reset();
     window.GymModule?.reset();
     window.WorkoutsModule?.reset();
+    window.RestDayModule?.reset();
     window.ProgressModule?.reset();
     showView('auth');
   }

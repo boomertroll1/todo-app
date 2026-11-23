@@ -19,6 +19,7 @@
   <script src="./stats.js" defer></script>
   <script src="./gym.js" defer></script>
   <script src="./workouts.js" defer></script>
+  <script src="./restday.js" defer></script>
   <script src="./calendar.js" defer></script>
   <script src="./focus.js" defer></script>
   <script src="./schedule.js" defer></script>
@@ -376,7 +377,7 @@
           <div class="card-header-row">
             <div>
               <h2>Doučování</h2>
-              <span class="muted">Zapiš koho, co a jak dlouho doučuješ — automaticky se ukáže v Kalendáři</span>
+              <span class="muted">Zapiš koho, co a jak dlouho doučuješ — 0.5 XP / min po odškrtnutí (cap 90 XP/d)</span>
             </div>
           </div>
 
@@ -597,6 +598,15 @@
 
     <!-- MODUL 4: TRÉNINKY & SÍLA -->
     <section id="module-workouts" class="module-panel hidden">
+      <!-- Rychlé přepnutí Rest day (max 3 po sobě, 0 XP) -->
+      <section id="rest-day-bar" class="card rest-day-bar">
+        <div class="rest-day-info">
+          <strong>Rest day (max 3 po sobě · 0 XP)</strong>
+          <span id="rest-day-status" class="muted">Načítám stav…</span>
+        </div>
+        <button type="button" id="rest-day-btn" class="btn btn-ghost">Nastavit Rest day</button>
+      </section>
+
       <form id="workout-form" class="card stack-sm">
         <div class="card-header-row">
           <h2>Nový trénink</h2>
@@ -824,10 +834,10 @@
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>Tréninky (Gym)</span>
+                <span>Tréninky (Gym) & Rest day</span>
                 <span class="badge badge-gym mono">Cap 80 XP / den</span>
               </div>
-              <p class="muted"><strong>40 XP</strong> za zapsaný trénink + <strong>2 XP</strong> za každou pracovní sérii (zahřívací série <strong>W</strong> se nepočítají).</p>
+              <p class="muted"><strong>40 XP</strong> za zapsaný trénink + <strong>2 XP</strong> za každou pracovní sérii (zahřívací <strong>W</strong> se nepočítají). <strong>Rest day</strong> lze nastavit max <strong>3× po sobě</strong> a dává <strong>0 XP</strong>.</p>
             </div>
 
             <div class="xp-rule-card">
@@ -835,7 +845,7 @@
                 <span>Tělo & Strava</span>
                 <span class="badge badge-gym mono">Cap 55 XP / den</span>
               </div>
-              <p class="muted"><strong>15 XP</strong> denní zápis + <strong>15 XP</strong> splněné bílkoviny + <strong>15 XP</strong> splněné kroky + <strong>10 XP</strong> spánek ≥ 7 hodin.</p>
+              <p class="muted"><strong>15 XP</strong> denní zápis (s reálnými daty) + <strong>15 XP</strong> splněné bílkoviny + <strong>15 XP</strong> splněné kroky + <strong>10 XP</strong> spánek ≥ 7 hodin.</p>
             </div>
 
             <div class="xp-rule-card">
