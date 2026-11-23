@@ -43,10 +43,24 @@ window.CleanModule = (() => {
     return new Date(y, m - 1, d);
   }
 
+  function xpForCleanStreakDay(streakDay) {
+    if (streakDay <= 0) return 0;
+    return Math.min(100, 10 + (streakDay - 1) * 3);
+  }
+
   function computeTrackerStats(tracker, relapseSet) {
     const today = todayStr();
     if (!tracker.start_date || tracker.start_date > today) {
-      return { currentStreak: 0, longestStreak: 0, cleanDays: 0, totalDays: 0, pct: 100 };
+      return {
+        currentStreak: 0,
+        longestStreak: 0,
+        cleanDays: 0,
+        totalDays: 0,
+        pct: 100,
+        todayXp: 0,
+        nextDayXp: 10,
+        totalXp: 0,
+      };
     }
 
     let cursor = parseLocalDate(tracker.start_date);
@@ -56,6 +70,7 @@ window.CleanModule = (() => {
     let longestStreak = 0;
     let cleanDays = 0;
     let totalDays = 0;
+    let totalXp = 0;
 
     while (cursor <= end) {
       const dStr = toDateStr(cursor);
@@ -65,13 +80,26 @@ window.CleanModule = (() => {
       } else {
         cleanDays++;
         currentStreak++;
+        totalXp += xpForCleanStreakDay(currentStreak);
         if (currentStreak > longestStreak) longestStreak = currentStreak;
       }
       cursor.setDate(cursor.getDate() + 1);
     }
 
     const pct = totalDays ? Math.round((cleanDays / totalDays) * 100) : 100;
-    return { currentStreak, longestStreak, cleanDays, totalDays, pct };
+    const todayXp = relapseSet.has(today) ? 0 : xpForCleanStreakDay(currentStreak);
+    const nextDayXp = xpForCleanStreakDay(currentStreak + 1);
+
+    return {
+      currentStreak,
+      longestStreak,
+      cleanDays,
+      totalDays,
+      pct,
+      todayXp,
+      nextDayXp,
+      totalXp,
+    };
   }
 
   function buildCleanHeatmapHtml(tracker, relapseSet, year) {
@@ -184,7 +212,7 @@ window.CleanModule = (() => {
 
     if (!trackers.length) {
       el.list.innerHTML =
-        '<p class="empty-state">Zatím nic nesleduješ. Přidej si třeba „Bez reels“, „Bez porna“ nebo „Bez cukru“ — každý aktivní čistý den dává +10 XP.</p>';
+        '<p class="empty-state">Zatím nic nesleduješ. Přidej si třeba „Bez reels“, „Bez porna“ nebo „Bez cukru“ — každý čistý den roste z 10 XP až na 100 XP/den, po selhání se resetuje zpět na 10 XP.</p>';
       return;
     }
 
@@ -200,6 +228,9 @@ window.CleanModule = (() => {
         const rSet = relapsesByTracker[t.id] || new Set();
         const stats = computeTrackerStats(t, rSet);
         const relapsedToday = rSet.has(today);
+        const xpBadge = relapsedToday
+          ? '<span class="badge badge-overdue mono">Reset · zítra +10 XP</span>'
+          : `<span class="badge badge-medium mono">+${stats.todayXp} XP/d${stats.todayXp < 100 ? ` → zítra +${stats.nextDayXp}` : ' (MAX)'}</span>`;
 
         return `
           <article class="card skill-card" style="--skill-color: ${t.color || '#10b981'};">
@@ -209,9 +240,10 @@ window.CleanModule = (() => {
                   <div class="skill-name-row">
                     <h3>${escapeHtml(t.name)}</h3>
                     <span class="badge badge-low mono">${stats.pct} % čistých</span>
+                    ${xpBadge}
                   </div>
                   <div class="skill-time mono">
-                    Od ${t.start_date} · <span class="muted">Rekord: ${stats.longestStreak}d · Čistých: ${stats.cleanDays}/${stats.totalDays}d</span>
+                    Od ${t.start_date} · <span class="muted">Rekord: ${stats.longestStreak}d · Čistých: ${stats.cleanDays}/${stats.totalDays}d · Celkem ${stats.totalXp.toLocaleString('cs-CZ')} XP</span>
                   </div>
                 </div>
               </div>
@@ -253,7 +285,7 @@ window.CleanModule = (() => {
       await loadAll();
       window.ProgressModule?.refresh();
     } else {
-      if (askConfirm && !confirm(`Označit den ${dateStr} jako selhání? (Streak se přepočítá)`)) {
+      if (askConfirm && !confirm(`Označit den ${dateStr} jako selhání? (Streak a denní XP sazba na tomto bloku se resetují zpět na 10 XP)`)) {
         return;
       }
       const { error } = await db
@@ -265,7 +297,7 @@ window.CleanModule = (() => {
         window.appShowError(`Chyba záznamu: ${error.message}`);
         return;
       }
-      window.appShowToast(`Zapsáno selhání (${dateStr}). Zítra jedeme znova.`);
+      window.appShowToast(`Zapsáno selhání (${dateStr}). Sazba resetována na 10 XP/den.`);
       await loadAll();
       window.ProgressModule?.refresh();
     }
@@ -318,7 +350,7 @@ window.CleanModule = (() => {
           }
 
           if (el.nameInput) el.nameInput.value = '';
-          window.appShowToast(`Tracker „${name}“ přidán.`);
+          window.appShowToast(`Tracker „${name}“ přidán (+10 XP/den, roste až na 100 XP/den).`);
           await loadAll();
           window.ProgressModule?.refresh();
         } catch (err) {

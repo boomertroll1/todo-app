@@ -101,10 +101,21 @@ window.ProgressModule = (() => {
     return `${y}-${m}-${d}`;
   }
 
+  function parseUTCDate(str) {
+    const [y, m, d] = str.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  }
+
+  function formatUTCDate(ms) {
+    const dt = new Date(ms);
+    const y = dt.getUTCFullYear();
+    const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(dt.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   function daysDiffUTC(dateStrA, dateStrB) {
-    const [y1, m1, d1] = dateStrA.split('-').map(Number);
-    const [y2, m2, d2] = dateStrB.split('-').map(Number);
-    return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
+    return Math.round((parseUTCDate(dateStrB) - parseUTCDate(dateStrA)) / 86400000);
   }
 
   function getISOWeekKey(dateStr) {
@@ -336,6 +347,7 @@ window.ProgressModule = (() => {
           graduationXp: 0,
           photoXp: 0,
           tutoringMin: 0,
+          cleanRaw: 0,
         };
       }
       return daily[d];
@@ -518,12 +530,32 @@ window.ProgressModule = (() => {
         if (bucket) bucket.photoXp += 15;
       });
 
-    // 8. Dny bez... (+10 XP za čistý den bez selhání, jen ve dny s jinou aktivitou)
-    const relapseDates = new Set(cleanRelapses.map((r) => r.relapse_date));
-    const minCleanStart = cleanTrackers.reduce((min, t) => {
-      if (!t.start_date) return min;
-      return !min || t.start_date < min ? t.start_date : min;
-    }, null);
+    // 8. Dny bez... — progresivní XP pro každý blok zvlášť (10 XP → +3 XP/den → max 100 XP/blok, po selhání reset na 10 XP)
+    const relapsesByTracker = {};
+    cleanRelapses.forEach((r) => {
+      if (!relapsesByTracker[r.tracker_id]) relapsesByTracker[r.tracker_id] = new Set();
+      relapsesByTracker[r.tracker_id].add(r.relapse_date);
+    });
+
+    const todayMs = parseUTCDate(todayStr);
+    cleanTrackers.forEach((t) => {
+      if (!t.start_date || t.start_date > todayStr) return;
+      const rSet = relapsesByTracker[t.id] || new Set();
+      let streak = 0;
+      const startMs = parseUTCDate(t.start_date);
+
+      for (let ms = startMs; ms <= todayMs; ms += 86400000) {
+        const dStr = formatUTCDate(ms);
+        if (rSet.has(dStr)) {
+          streak = 0;
+        } else {
+          streak++;
+          const dayXp = Math.min(100, 10 + (streak - 1) * 3);
+          const bucket = ensureDay(dStr);
+          if (bucket) bucket.cleanRaw += dayXp;
+        }
+      }
+    });
 
     // Chronologické sečtení dnů + Streak multiplikátor (1.00× až 1.20×)
     const sortedDates = Object.keys(daily).sort();
@@ -541,6 +573,7 @@ window.ProgressModule = (() => {
     let runningStreak = 0;
     let prevActiveDate = null;
     let currentMultiplier = 1.0;
+    let hasActiveWorkToday = false;
 
     sortedDates.forEach((d) => {
       const b = daily[d];
@@ -561,24 +594,29 @@ window.ProgressModule = (() => {
       const dHabitCombo = activeSkillsCount >= 3 && skillsDoneCount >= activeSkillsCount ? 15 : 0;
       const dHabit = dHabitBase + dHabitCombo + b.graduationXp + dReminders;
       const dPhoto = b.photoXp;
+      const dClean = Math.min(200, b.cleanRaw);
 
       const activeBase = dTodo + dFocus + dMilestone + dPlan + dWorkout + dLog + dHabit + dTutoring + dPhoto;
-      if (activeBase <= 0) return;
+      if (activeBase <= 0 && dClean <= 0) return;
 
-      const dClean =
-        minCleanStart && d >= minCleanStart && d <= todayStr && !relapseDates.has(d) ? 10 : 0;
+      let finalDayXp = 0;
+      let baseSum = activeBase + dClean;
 
-      const baseSum = activeBase + dClean;
+      if (activeBase > 0) {
+        if (d === todayStr) hasActiveWorkToday = true;
+        if (prevActiveDate && daysDiffUTC(prevActiveDate, d) === 1) {
+          runningStreak++;
+        } else {
+          runningStreak = 1;
+        }
+        prevActiveDate = d;
 
-      if (prevActiveDate && daysDiffUTC(prevActiveDate, d) === 1) {
-        runningStreak++;
+        const mult = 1 + Math.min(0.2, Math.floor(runningStreak / 3) * 0.04);
+        finalDayXp = Math.round(baseSum * mult);
       } else {
-        runningStreak = 1;
+        // Samotné Dny bez... dají svoje XP (1.00×), ale nenafukují aktivní streak multiplikátor
+        finalDayXp = dClean;
       }
-      prevActiveDate = d;
-
-      const mult = 1 + Math.min(0.2, Math.floor(runningStreak / 3) * 0.04);
-      const finalDayXp = Math.round(baseSum * mult);
 
       todoXpTotal += dTodo;
       focusXpTotal += dFocus + dMilestone + dPlan;
@@ -593,7 +631,6 @@ window.ProgressModule = (() => {
       xpByDate[d] = finalDayXp;
     });
 
-    const hasActivityToday = (xpByDate[todayStr] || 0) > 0;
     let globalActiveStreak = 0;
     if (prevActiveDate && daysDiffUTC(prevActiveDate, todayStr) <= 1) {
       globalActiveStreak = runningStreak;
@@ -680,7 +717,7 @@ window.ProgressModule = (() => {
     lastComputed = {
       levelInfo,
       streak: globalActiveStreak,
-      hasActivityToday,
+      hasActivityToday: hasActiveWorkToday,
       currentMultiplier,
       todoXp: todoXpTotal,
       logXp: logXpTotal,
@@ -873,9 +910,9 @@ window.ProgressModule = (() => {
         `<div class="kpi-card kpi-glow"><span class="kpi-label">Achievementy</span><span class="kpi-value kpi-accent mono">${unlockedCnt} / ${r.achievements.length}</span><span class="kpi-sub">${Math.round((unlockedCnt / Math.max(1, r.achievements.length)) * 100)} % dokončeno</span></div>`,
         `<div class="kpi-card"><span class="kpi-label">Fokus & Plány</span><span class="kpi-value mono">${r.focusXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">${focusHours} h · ${r.completedPlansCount} plánů</span></div>`,
         `<div class="kpi-card"><span class="kpi-label">Doučování</span><span class="kpi-value mono">${r.tutoringXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">${tutorHours} h (${r.completedTutoringCount} lekcí) · cap 90/d</span></div>`,
-        `<div class="kpi-card"><span class="kpi-label">Rutiny & Dny bez</span><span class="kpi-value mono">${(r.habitXp + r.cleanXp).toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">${r.cleanXp} XP za čisté dny</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">Dny bez…</span><span class="kpi-value mono">${r.cleanXp.toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">10→100 XP/blok · cap 200/d</span></div>`,
         `<div class="kpi-card"><span class="kpi-label">Gym & Strava</span><span class="kpi-value mono">${(r.workoutXp + r.logXp).toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Cap 80 gym + 55 strava/d</span></div>`,
-        `<div class="kpi-card"><span class="kpi-label">Úkoly & Fotky</span><span class="kpi-value mono">${(r.todoXp + r.photoXp).toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">10 XP/úkol · cap 50/d</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">Úkoly, Rutiny & Fotky</span><span class="kpi-value mono">${(r.todoXp + r.habitXp + r.photoXp).toLocaleString('cs-CZ')} XP</span><span class="kpi-sub">Úkoly, připomínky & fotky</span></div>`,
       ].join('');
     }
 
