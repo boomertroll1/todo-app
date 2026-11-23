@@ -2490,3 +2490,175 @@ select:focus {
     grid-column: span 1;
   }
 }
+/* === PLÁNOVAČ FOKUSU, STATISTIKY AKTIVIT & DOUČOVÁNÍ === */
+.focus-add-grid {
+  grid-template-columns: 1.8fr 50px 95px auto;
+}
+
+.focus-plan-grid {
+  display: grid;
+  grid-template-columns: 145px 1.6fr 95px auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.plan-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: rgba(7, 9, 15, 0.72);
+  border: 1px solid var(--border);
+}
+
+.plan-row.done {
+  border-color: rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.plan-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.plan-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.plan-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.plan-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.plan-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skill-stats-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(7, 9, 15, 0.55);
+  border: 1px solid var(--border);
+}
+
+.skill-stat-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.78rem;
+}
+
+.skill-stat-box strong {
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.tutor-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(7, 9, 15, 0.72);
+  border: 1px solid var(--border);
+}
+
+.tutor-item.done {
+  opacity: 0.65;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.tutor-item.done .tutor-student {
+  text-decoration: line-through;
+}
+
+.tutor-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tutor-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.tutor-student {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.tutor-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.78rem;
+}
+
+.dot-focus {
+  background: #00f0ff;
+}
+
+.dot-tutor {
+  background: #f472b6;
+}
+
+.cal-detail-block {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(7, 9, 15, 0.55);
+  border: 1px solid var(--border);
+}
+
+.cal-detail-block h4 {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cyan);
+  margin-bottom: 6px;
+}
+
+.cal-detail-block ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 760px) {
+  .focus-plan-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .focus-plan-grid select,
+  .focus-plan-grid .btn-primary {
+    grid-column: span 2;
+  }
+  .focus-add-grid {
+    grid-template-columns: 1fr 50px 85px;
+  }
+  .focus-add-grid .btn-primary {
+    grid-column: 1 / -1;
+  }
+}

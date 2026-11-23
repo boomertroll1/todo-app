@@ -1,23 +1,26 @@
 window.CalendarModule = (() => {
   let db = null;
   let user = null;
-  let currentYear = new Date().getFullYear();
-  let currentMonth = new Date().getMonth(); // 0..11
-  let selectedDate = null;
+  let viewDate = new Date();
+  let selectedDate = '';
   let initializedListeners = false;
 
-  let monthData = {
+  let cache = {
     todos: [],
     logs: [],
     workouts: [],
     photos: [],
+    focusSkills: [],
+    focusSessions: [],
+    focusPlans: [],
+    tutoring: [],
   };
 
   const MONTH_NAMES = [
     'Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen',
     'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec',
   ];
-
+  const QUICK_NOTE = 'Odškrtnuto';
   const el = {};
 
   function cacheElements() {
@@ -40,214 +43,274 @@ window.CalendarModule = (() => {
     return String(n).padStart(2, '0');
   }
 
-  function toDateStr(y, m, d) {
-    return `${y}-${pad(m + 1)}-${pad(d)}`;
+  function toDateStr(date) {
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   }
 
   function todayStr() {
-    const now = new Date();
-    return toDateStr(now.getFullYear(), now.getMonth(), now.getDate());
+    return toDateStr(new Date());
   }
 
-  async function loadMonth() {
+  function formatDuration(min) {
+    const m = Math.round(min || 0);
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    return rem ? `${h}h ${rem}m` : `${h}h`;
+  }
+
+  async function loadAll() {
     if (!db || !user) return;
 
-    const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const startStr = toDateStr(currentYear, currentMonth, 1);
-    const endStr = toDateStr(currentYear, currentMonth, lastDay);
+    const [todosRes, logsRes, woRes, photosRes, skillsRes, sessRes, plansRes, tutorRes] =
+      await Promise.all([
+        db.from('todos').select('id, title, is_completed, due_date'),
+        db.from('daily_logs').select('log_date, day_type, weight_kg, kcal, protein_g, steps, sleep_hours').limit(500),
+        db.from('workouts').select('id, workout_date, name, duration_min').limit(500),
+        db.from('user_photos').select('id, photo_date, category, caption, image_data').limit(120),
+        db.from('focus_skills').select('id, name, color'),
+        db.from('focus_sessions').select('skill_id, session_date, minutes, notes').limit(5000),
+        db.from('focus_plans').select('id, skill_id, plan_date, target_minutes').limit(1000),
+        db.from('tutoring_sessions').select('*').limit(1000),
+      ]);
 
-    const [todosRes, logsRes, woRes, photosRes] = await Promise.all([
-      db.from('todos').select('id, title, is_completed, priority, due_date, subtasks').gte('due_date', startStr).lte('due_date', endStr),
-      db.from('daily_logs').select('*').gte('log_date', startStr).lte('log_date', endStr),
-      db.from('workouts').select('*').gte('workout_date', startStr).lte('workout_date', endStr),
-      db.from('user_photos').select('*').gte('photo_date', startStr).lte('photo_date', endStr),
-    ]);
-
-    monthData = {
+    cache = {
       todos: todosRes.data || [],
       logs: logsRes.data || [],
       workouts: woRes.data || [],
       photos: photosRes.data || [],
+      focusSkills: skillsRes.data || [],
+      focusSessions: sessRes.data || [],
+      focusPlans: plansRes.data || [],
+      tutoring: tutorRes.data || [],
     };
 
-    renderCalendar();
-    renderDayDetail();
+    render();
   }
 
-  function renderCalendar() {
+  function render() {
     if (!el.grid) return;
-    el.monthLabel.textContent = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
 
-    const firstWeekday = (new Date(currentYear, currentMonth, 1).getDay() + 6) % 7; // Po=0..Ne=6
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
     const today = todayStr();
 
-    const todosByDay = {};
-    monthData.todos.forEach((t) => {
-      if (!todosByDay[t.due_date]) todosByDay[t.due_date] = [];
-      todosByDay[t.due_date].push(t);
+    if (el.monthLabel) {
+      el.monthLabel.textContent = `${MONTH_NAMES[month]} ${year}`;
+    }
+
+    const byDate = {};
+    const ensure = (d) => {
+      if (!d) return null;
+      if (!byDate[d]) {
+        byDate[d] = {
+          todos: [],
+          log: null,
+          workouts: [],
+          photos: [],
+          focusSessions: [],
+          focusPlans: [],
+          tutoring: [],
+        };
+      }
+      return byDate[d];
+    };
+
+    cache.todos.forEach((t) => {
+      if (t.due_date) ensure(t.due_date).todos.push(t);
+    });
+    cache.logs.forEach((l) => {
+      if (l.log_date) ensure(l.log_date).log = l;
+    });
+    cache.workouts.forEach((w) => {
+      if (w.workout_date) ensure(w.workout_date).workouts.push(w);
+    });
+    cache.photos.forEach((p) => {
+      if (p.photo_date) ensure(p.photo_date).photos.push(p);
+    });
+    cache.focusSessions.forEach((s) => {
+      if (s.session_date) ensure(s.session_date).focusSessions.push(s);
+    });
+    cache.focusPlans.forEach((p) => {
+      if (p.plan_date) ensure(p.plan_date).focusPlans.push(p);
+    });
+    cache.tutoring.forEach((t) => {
+      if (t.lesson_date) ensure(t.lesson_date).tutoring.push(t);
     });
 
-    const logByDay = {};
-    monthData.logs.forEach((l) => {
-      logByDay[l.log_date] = l;
-    });
+    const firstDay = new Date(year, month, 1);
+    const startOffset = (firstDay.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    const woByDay = {};
-    monthData.workouts.forEach((w) => {
-      if (!woByDay[w.workout_date]) woByDay[w.workout_date] = [];
-      woByDay[w.workout_date].push(w);
-    });
-
-    const photosByDay = {};
-    monthData.photos.forEach((p) => {
-      if (!photosByDay[p.photo_date]) photosByDay[p.photo_date] = [];
-      photosByDay[p.photo_date].push(p);
-    });
-
-    let cellsHtml = '';
-    for (let i = 0; i < firstWeekday; i++) {
-      cellsHtml += '<div class="cal-cell cal-empty"></div>';
+    const cells = [];
+    for (let i = 0; i < startOffset; i++) {
+      cells.push('<div class="cal-cell cal-empty"></div>');
     }
 
     for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = toDateStr(currentYear, currentMonth, day);
-      const isToday = dateStr === today;
-      const isSelected = dateStr === selectedDate;
-
-      const dayTodos = todosByDay[dateStr] || [];
-      const dayLog = logByDay[dateStr];
-      const dayWo = woByDay[dateStr] || [];
-      const dayPhotos = photosByDay[dateStr] || [];
-
+      const dStr = `${year}-${pad(month + 1)}-${pad(day)}`;
+      const info = byDate[dStr];
       const dots = [];
-      if (dayTodos.length) {
-        const hasOpen = dayTodos.some((t) => !t.is_completed);
-        dots.push(`<span class="cal-dot ${hasOpen ? 'dot-todo' : 'dot-done'}" title="Úkoly (${dayTodos.length})"></span>`);
-      }
-      if (dayLog) {
-        const cls = dayLog.day_type === 'rest' ? 'dot-rest' : dayLog.day_type === 'cardio' ? 'dot-cardio' : 'dot-gym';
-        dots.push(`<span class="cal-dot ${cls}" title="Denní log (${dayLog.day_type})"></span>`);
-      }
-      if (dayWo.length) {
-        dots.push(`<span class="cal-dot dot-wo" title="Trénink (${dayWo.length})"></span>`);
-      }
-      if (dayPhotos.length) {
-        dots.push(`<span class="cal-dot dot-photo" title="Fotky (${dayPhotos.length})"></span>`);
+
+      if (info) {
+        if (info.todos.length) dots.push('<i class="cal-dot dot-todo" title="Úkoly"></i>');
+        if (info.focusPlans.length || info.focusSessions.length) {
+          dots.push('<i class="cal-dot dot-focus" title="Fokus / Plán"></i>');
+        }
+        if (info.tutoring.length) dots.push('<i class="cal-dot dot-tutor" title="Doučování"></i>');
+        if (info.log) {
+          const logCls = info.log.day_type === 'rest' ? 'dot-rest' : 'dot-gym';
+          dots.push(`<i class="cal-dot ${logCls}" title="Denní zápis"></i>`);
+        }
+        if (info.workouts.length) dots.push('<i class="cal-dot dot-wo" title="Trénink"></i>');
+        if (info.photos.length) dots.push('<i class="cal-dot dot-photo" title="Fotky"></i>');
       }
 
-      cellsHtml += `
-        <button type="button" class="cal-cell ${isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''}" data-cal-date="${dateStr}">
+      const isToday = dStr === today;
+      const isSelected = dStr === selectedDate;
+
+      cells.push(`
+        <button type="button" class="cal-cell ${isToday ? 'cal-today' : ''} ${isSelected ? 'cal-selected' : ''}" data-cal-date="${dStr}">
           <span class="cal-day-num mono">${day}</span>
-          <div class="cal-dots">${dots.join('')}</div>
+          <span class="cal-dots">${dots.join('')}</span>
         </button>
-      `;
-    }
-
-    el.grid.innerHTML = cellsHtml;
-  }
-
-  function renderDayDetail() {
-    if (!el.detailBody || !selectedDate) return;
-    el.detailTitle.textContent = `Detail dne · ${selectedDate}`;
-
-    const dayTodos = monthData.todos.filter((t) => t.due_date === selectedDate);
-    const dayLog = monthData.logs.find((l) => l.log_date === selectedDate);
-    const dayWo = monthData.workouts.filter((w) => w.workout_date === selectedDate);
-    const dayPhotos = monthData.photos.filter((p) => p.photo_date === selectedDate);
-
-    const sections = [];
-
-    if (dayTodos.length) {
-      const items = dayTodos
-        .map((t) => {
-          const subs = Array.isArray(t.subtasks) ? t.subtasks : [];
-          const subTxt = subs.length ? ` (${subs.filter((s) => s.done).length}/${subs.length} podúkolů)` : '';
-          return `<div class="cal-item ${t.is_completed ? 'cal-done' : ''}">${t.is_completed ? '✅' : '⬜'} ${escapeHtml(t.title)}${subTxt}</div>`;
-        })
-        .join('');
-      sections.push(`<div class="cal-detail-block"><h4>Úkoly s termínem</h4>${items}</div>`);
-    }
-
-    if (dayLog) {
-      const m = [];
-      if (dayLog.weight_kg != null) m.push(`⚖️ ${dayLog.weight_kg} kg`);
-      if (dayLog.calories != null) m.push(`🔥 ${dayLog.calories} kcal`);
-      if (dayLog.protein_g != null) m.push(`🥩 ${dayLog.protein_g} g B`);
-      if (dayLog.steps != null) m.push(`👟 ${Number(dayLog.steps).toLocaleString('cs-CZ')} kroků`);
-      if (dayLog.sleep_hours != null) m.push(`😴 ${dayLog.sleep_hours} h`);
-      sections.push(`
-        <div class="cal-detail-block">
-          <h4>Tělo & Strava (${dayLog.day_type})</h4>
-          <div class="cal-item">${m.join(' · ') || 'Zapsáno bez hodnot'}</div>
-          ${dayLog.notes ? `<div class="muted">${escapeHtml(dayLog.notes)}</div>` : ''}
-        </div>
       `);
     }
 
-    if (dayWo.length) {
-      const wItems = dayWo
-        .map((w) => `<div class="cal-item">🏋️ <strong>${escapeHtml(w.name)}</strong>${w.duration_min ? ` · ${w.duration_min} min` : ''}${w.rpe ? ` · RPE ${w.rpe}` : ''}</div>`)
-        .join('');
-      sections.push(`<div class="cal-detail-block"><h4>Tréninky</h4>${wItems}</div>`);
+    el.grid.innerHTML = cells.join('');
+    renderDetail(selectedDate || today, byDate[selectedDate || today]);
+  }
+
+  function renderDetail(dateStr, info) {
+    if (!el.detailTitle || !el.detailBody) return;
+    const [y, m, d] = dateStr.split('-').map(Number);
+    el.detailTitle.textContent = `Detail dne · ${d}. ${m}. ${y}`;
+
+    if (!info) {
+      el.detailBody.innerHTML = '<p class="muted">Pro tento den zatím nejsou žádné záznamy ani plány.</p>';
+      return;
     }
 
-    if (dayPhotos.length) {
-      const pItems = dayPhotos
+    const skillMap = new Map(cache.focusSkills.map((s) => [s.id, s]));
+    const blocks = [];
+
+    // 1. Doučování
+    if (info.tutoring.length) {
+      const items = info.tutoring
+        .map((t) => {
+          const time = t.start_time ? `${escapeHtml(t.start_time)} · ` : '';
+          const price = t.price_czk ? ` · ${t.price_czk} Kč` : '';
+          return `<li>${t.is_completed ? '✅' : '🎓'} <strong>${escapeHtml(t.student_name)}</strong> — ${escapeHtml(t.subject)} <span class="mono muted">(${time}${formatDuration(t.duration_min)}${price})</span>${t.notes ? ` · <span class="muted">${escapeHtml(t.notes)}</span>` : ''}</li>`;
+        })
+        .join('');
+      blocks.push(`<div class="cal-detail-block"><h4>Doučování</h4><ul>${items}</ul></div>`);
+    }
+
+    // 2. Fokus plán & odpracovaný čas
+    if (info.focusPlans.length || info.focusSessions.length) {
+      const loggedBySkill = {};
+      info.focusSessions.forEach((s) => {
+        if (!loggedBySkill[s.skill_id]) loggedBySkill[s.skill_id] = { min: 0, quick: false };
+        if (s.notes === QUICK_NOTE) loggedBySkill[s.skill_id].quick = true;
+        else loggedBySkill[s.skill_id].min += Number(s.minutes) || 0;
+      });
+
+      const lines = [];
+      const shownSkills = new Set();
+
+      info.focusPlans.forEach((p) => {
+        shownSkills.add(p.skill_id);
+        const sk = skillMap.get(p.skill_id);
+        const logged = loggedBySkill[p.skill_id]?.min || 0;
+        const done = logged >= p.target_minutes;
+        lines.push(
+          `<li>${done ? '✅' : '⏱️'} <strong>${escapeHtml(sk?.name || 'Aktivita')}</strong> — plán <span class="mono">${logged} / ${p.target_minutes} min</span></li>`
+        );
+      });
+
+      Object.entries(loggedBySkill).forEach(([sid, val]) => {
+        if (shownSkills.has(sid)) return;
+        const sk = skillMap.get(sid);
+        const txt = val.min > 0 ? formatDuration(val.min) : 'Odškrtnuto ✓';
+        lines.push(`<li>✅ <strong>${escapeHtml(sk?.name || 'Aktivita')}</strong> — <span class="mono">${txt}</span></li>`);
+      });
+
+      blocks.push(`<div class="cal-detail-block"><h4>Fokus & Plán učení</h4><ul>${lines.join('')}</ul></div>`);
+    }
+
+    // 3. Úkoly
+    if (info.todos.length) {
+      const items = info.todos
+        .map((t) => `<li>${t.is_completed ? '✅' : '⬜'} ${escapeHtml(t.title)}</li>`)
+        .join('');
+      blocks.push(`<div class="cal-detail-block"><h4>Úkoly</h4><ul>${items}</ul></div>`);
+    }
+
+    // 4. Tréninky
+    if (info.workouts.length) {
+      const items = info.workouts
+        .map((w) => `<li>🏋️ <strong>${escapeHtml(w.name)}</strong>${w.duration_min ? ` <span class="mono muted">(${w.duration_min} min)</span>` : ''}</li>`)
+        .join('');
+      blocks.push(`<div class="cal-detail-block"><h4>Tréninky</h4><ul>${items}</ul></div>`);
+    }
+
+    // 5. Denní log (váha, kalorie, kroky)
+    if (info.log) {
+      const l = info.log;
+      const parts = [];
+      if (l.weight_kg != null) parts.push(`Váha: <strong>${l.weight_kg} kg</strong>`);
+      if (l.kcal != null) parts.push(`Kalorie: <strong>${l.kcal} kcal</strong>`);
+      if (l.protein_g != null) parts.push(`Bílkoviny: <strong>${l.protein_g} g</strong>`);
+      if (l.steps != null) parts.push(`Kroky: <strong>${Number(l.steps).toLocaleString('cs-CZ')}</strong>`);
+      if (l.sleep_hours != null) parts.push(`Spánek: <strong>${l.sleep_hours} h</strong>`);
+      blocks.push(
+        `<div class="cal-detail-block"><h4>Tělo & Strava (${escapeHtml(l.day_type || 'gym')})</h4><p class="mono" style="font-size:0.84rem;">${parts.join(' · ') || 'Zapsáno'}</p></div>`
+      );
+    }
+
+    // 6. Fotky
+    if (info.photos.length) {
+      const imgs = info.photos
         .map(
-          (p) => `<img src="${p.image_data}" alt="${escapeHtml(p.caption || 'Fotka')}" class="cal-photo-mini" data-cal-photo="${p.id}">`
+          (p) =>
+            `<img src="${p.image_data}" alt="${escapeHtml(p.caption || 'Fotka')}" class="todo-att-thumb" data-cal-photo="${p.id}">`
         )
         .join('');
-      sections.push(`<div class="cal-detail-block"><h4>Fotky</h4><div class="cal-photos-row">${pItems}</div></div>`);
+      blocks.push(`<div class="cal-detail-block"><h4>Fotky (${info.photos.length})</h4><div class="todo-attachments">${imgs}</div></div>`);
     }
 
-    el.detailBody.innerHTML = sections.length
-      ? sections.join('')
-      : '<p class="muted">Pro tento den nemáš žádné záznamy ani termíny úkolů.</p>';
+    el.detailBody.innerHTML = blocks.join('');
   }
 
   function bindEvents() {
     if (initializedListeners) return;
     initializedListeners = true;
 
-    el.prevBtn.addEventListener('click', () => {
-      currentMonth--;
-      if (currentMonth < 0) {
-        currentMonth = 11;
-        currentYear--;
-      }
-      loadMonth();
+    el.prevBtn?.addEventListener('click', () => {
+      viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
+      render();
     });
-
-    el.nextBtn.addEventListener('click', () => {
-      currentMonth++;
-      if (currentMonth > 11) {
-        currentMonth = 0;
-        currentYear++;
-      }
-      loadMonth();
+    el.nextBtn?.addEventListener('click', () => {
+      viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
+      render();
     });
-
-    el.todayBtn.addEventListener('click', () => {
-      const now = new Date();
-      currentYear = now.getFullYear();
-      currentMonth = now.getMonth();
+    el.todayBtn?.addEventListener('click', () => {
+      viewDate = new Date();
       selectedDate = todayStr();
-      loadMonth();
+      render();
     });
 
-    el.grid.addEventListener('click', (e) => {
+    el.grid?.addEventListener('click', (e) => {
       const cell = e.target.closest('[data-cal-date]');
       if (!cell) return;
       selectedDate = cell.dataset.calDate;
-      renderCalendar();
-      renderDayDetail();
+      render();
     });
 
-    el.detailBody.addEventListener('click', (e) => {
+    el.detailBody?.addEventListener('click', (e) => {
       const img = e.target.closest('[data-cal-photo]');
       if (!img) return;
-      const photo = monthData.photos.find((p) => p.id === img.dataset.calPhoto);
+      const photo = cache.photos.find((p) => p.id === img.dataset.calPhoto);
       if (photo && window.openPhotoLightbox) {
         window.openPhotoLightbox(photo.image_data, `${photo.photo_date}${photo.caption ? ' — ' + photo.caption : ''}`);
       }
@@ -261,17 +324,26 @@ window.CalendarModule = (() => {
       selectedDate = todayStr();
       cacheElements();
       bindEvents();
-      loadMonth();
+      loadAll();
     },
     refresh() {
-      loadMonth();
+      loadAll();
     },
     onShow() {
-      loadMonth();
+      loadAll();
     },
     reset() {
       user = null;
-      monthData = { todos: [], logs: [], workouts: [], photos: [] };
+      cache = {
+        todos: [],
+        logs: [],
+        workouts: [],
+        photos: [],
+        focusSkills: [],
+        focusSessions: [],
+        focusPlans: [],
+        tutoring: [],
+      };
     },
   };
 })();

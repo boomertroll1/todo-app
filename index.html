@@ -21,6 +21,7 @@
   <script src="./workouts.js" defer></script>
   <script src="./calendar.js" defer></script>
   <script src="./focus.js" defer></script>
+  <script src="./tutoring.js" defer></script>
   <script src="./clean.js" defer></script>
   <script src="./achievements.js" defer></script>
   <script src="./progress.js" defer></script>
@@ -112,12 +113,13 @@
       <button type="button" class="module-tab" data-module="ranks">Ranky</button>
     </nav>
 
-    <!-- MODUL 1: ÚKOLY, FOKUS & DNY BEZ... -->
+    <!-- MODUL 1: ÚKOLY, FOKUS, DOUČOVÁNÍ & DNY BEZ... -->
     <section id="module-todos" class="module-panel">
       <div class="ranks-subtabs" role="tablist">
-        <button type="button" class="chip todos-subtab active" data-todos-tab="main">✅ Úkoly</button>
-        <button type="button" class="chip todos-subtab" data-todos-tab="focus">⏱️ Fokus & Dlouhodobé</button>
-        <button type="button" class="chip todos-subtab" data-todos-tab="clean">🛡️ Dny bez…</button>
+        <button type="button" class="chip todos-subtab active" data-todos-tab="main">Úkoly</button>
+        <button type="button" class="chip todos-subtab" data-todos-tab="focus">Fokus & Dlouhodobé</button>
+        <button type="button" class="chip todos-subtab" data-todos-tab="tutoring">Doučování</button>
+        <button type="button" class="chip todos-subtab" data-todos-tab="clean">Dny bez…</button>
       </div>
 
       <!-- Podpanel A: Čistě Jednorázové úkoly s deadlinem -->
@@ -176,10 +178,30 @@
         <p id="empty-state" class="empty-state hidden">Žádné úkoly k zobrazení.</p>
       </div>
 
-      <!-- Podpanel B: Fokus, Dlouhodobé učení, Rutiny & Roční heatmapy (vše v jednom) -->
+      <!-- Podpanel B: Fokus, Plánovač dnů, Rutiny & Roční heatmapy -->
       <div id="todos-panel-focus" class="stack hidden">
         <div id="focus-summary-bar" class="kpi-grid"></div>
 
+        <!-- Plánovač dnů (propisuje se do Kalendáře) -->
+        <section class="card stack-sm">
+          <div class="card-header-row">
+            <div>
+              <h2 id="focus-plan-date-label">Plán na dnešek</h2>
+              <span class="muted">Vyber den a kolik minut chceš čemu dát — vše se ukáže i v Kalendáři</span>
+            </div>
+          </div>
+
+          <form id="focus-plan-form" class="focus-plan-grid">
+            <input id="focus-plan-date" type="date" aria-label="Den plánu" required>
+            <select id="focus-plan-skill" aria-label="Vyber aktivitu"></select>
+            <input id="focus-plan-minutes" type="number" min="5" max="600" value="60" placeholder="Minut" title="Plánovaný čas v minutách" required>
+            <button type="submit" class="btn btn-primary">+ Naplánovat</button>
+          </form>
+
+          <div id="focus-plan-list" class="stack-sm"></div>
+        </section>
+
+        <!-- Deep Work Časovač -->
         <section class="card timer-card stack-sm">
           <div class="card-header-row">
             <h2>Deep Work Časovač (0.5 XP/min do 3h, cap 120 XP/d)</h2>
@@ -208,6 +230,7 @@
           </div>
         </section>
 
+        <!-- Dlouhodobé učení & Roční heatmapy (BEZ pole pro datum) -->
         <form id="focus-add-skill-form" class="card stack-sm">
           <div class="card-header-row">
             <div>
@@ -221,7 +244,6 @@
             </div>
           </div>
 
-          <!-- Denní progress & Combo -->
           <div class="focus-daily-bar">
             <div class="habits-meta-right">
               <span id="focus-combo-badge" class="badge badge-date mono">100 % (min. 3) = +15 XP Combo</span>
@@ -233,17 +255,15 @@
           </div>
 
           <div class="focus-add-grid">
-            <input id="focus-skill-name" type="text" maxlength="50" placeholder="Nová aktivita (např. Lean 4, Šachy, Kreatin)..." required>
+            <input id="focus-skill-name" type="text" maxlength="50" placeholder="Nová aktivita (např. Lean 4, Šachy, Matematika)..." required>
             <input id="focus-skill-color" type="color" value="#00f0ff" aria-label="Barva heatmapy" title="Barva heatmapy">
-            <input id="focus-skill-goal" type="number" min="5" max="600" value="30" placeholder="Cíl (min)" title="Denní cíl v minutách">
-            <input id="focus-skill-due" type="date" aria-label="Volitelný deadline" title="Volitelný cíl do data (prázdné = ∞ průběžně)">
+            <input id="focus-skill-goal" type="number" min="5" max="600" value="60" placeholder="Cíl (min)" title="Denní cíl v minutách">
             <button type="submit" class="btn btn-primary">+ Přidat</button>
           </div>
         </form>
 
         <div id="focus-skills-list" class="stack"></div>
 
-        <!-- Archiv zvládnutých / naučených aktivit -->
         <details id="focus-completed-wrap" class="card habits-archive hidden">
           <summary class="habits-archive-summary">
             <span>Zvládnuto / Naučeno navždy (<span id="focus-completed-count">0</span>)</span>
@@ -252,7 +272,66 @@
         </details>
       </div>
 
-      <!-- Podpanel C: Dny bez... (Streak + roční mřížka kostiček) -->
+      <!-- Podpanel C: Doučování (propisuje se do Kalendáře) -->
+      <div id="todos-panel-tutoring" class="stack hidden">
+        <div id="tutoring-kpi-grid" class="kpi-grid"></div>
+
+        <form id="tutoring-form" class="card stack-sm">
+          <div class="card-header-row">
+            <div>
+              <h2>Doučování</h2>
+              <span class="muted">Zapiš koho, co a jak dlouho doučuješ — automaticky se ukáže v Kalendáři</span>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <label class="field">
+              <span>Student / Koho</span>
+              <input id="tutor-student" type="text" list="tutor-student-datalist" maxlength="80" placeholder="Např. Iduš" required>
+            </label>
+            <label class="field">
+              <span>Předmět / Co</span>
+              <input id="tutor-subject" type="text" maxlength="80" placeholder="Matematika / Fyzika / Chemie" required>
+            </label>
+            <label class="field">
+              <span>Datum</span>
+              <input id="tutor-date" type="date" required>
+            </label>
+            <label class="field">
+              <span>Čas od (volitelné)</span>
+              <input id="tutor-time" type="time">
+            </label>
+            <label class="field">
+              <span>Délka (min)</span>
+              <input id="tutor-duration" type="number" min="15" max="480" value="60" required>
+            </label>
+            <label class="field">
+              <span>Cena (Kč, volitelné)</span>
+              <input id="tutor-price" type="number" min="0" max="50000" placeholder="300">
+            </label>
+            <label class="field field-wide">
+              <span>Poznámka / Téma lekce</span>
+              <input id="tutor-notes" type="text" maxlength="200" placeholder="Derivace, příprava na test...">
+            </label>
+          </div>
+          <datalist id="tutor-student-datalist"></datalist>
+
+          <div class="form-footer">
+            <span class="muted">Lekce se automaticky propíše do Kalendáře</span>
+            <button type="submit" class="btn btn-primary">+ Uložit lekci</button>
+          </div>
+        </form>
+
+        <div class="filter-group">
+          <button type="button" class="chip tutor-filter-chip active" data-tutor-filter="upcoming">Nadcházející</button>
+          <button type="button" class="chip tutor-filter-chip" data-tutor-filter="done">Odučené</button>
+          <button type="button" class="chip tutor-filter-chip" data-tutor-filter="all">Vše</button>
+        </div>
+
+        <div id="tutoring-list" class="stack-sm"></div>
+      </div>
+
+      <!-- Podpanel D: Dny bez... (Streak + roční mřížka kostiček) -->
       <div id="todos-panel-clean" class="stack hidden">
         <form id="clean-add-form" class="card stack-sm">
           <div class="card-header-row">
@@ -298,6 +377,8 @@
 
         <div class="cal-legend muted">
           <span><i class="cal-dot dot-todo"></i> Úkol</span>
+          <span><i class="cal-dot dot-focus"></i> Fokus / Plán</span>
+          <span><i class="cal-dot dot-tutor"></i> Doučování</span>
           <span><i class="cal-dot dot-gym"></i> Gym den</span>
           <span><i class="cal-dot dot-rest"></i> Rest</span>
           <span><i class="cal-dot dot-wo"></i> Trénink</span>
@@ -565,8 +646,8 @@
     <!-- MODUL 6: RANKY + PODZÁLOŽKA JAK FUNGUJÍ XP -->
     <section id="module-ranks" class="module-panel hidden">
       <div class="ranks-subtabs" role="tablist">
-        <button type="button" class="chip ranks-subtab active" data-ranks-tab="catalog">🏆 Katalog Ranků</button>
-        <button type="button" class="chip ranks-subtab" data-ranks-tab="xp-guide">📘 Jak fungují XP</button>
+        <button type="button" class="chip ranks-subtab active" data-ranks-tab="catalog">Katalog Ranků</button>
+        <button type="button" class="chip ranks-subtab" data-ranks-tab="xp-guide">Jak fungují XP</button>
       </div>
 
       <div id="ranks-panel-catalog" class="stack">
@@ -596,7 +677,7 @@
           <div class="xp-rules-grid">
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>✅ Jednorázové úkoly</span>
+                <span>Jednorázové úkoly</span>
                 <span class="badge badge-gym mono">Cap 50 XP / den</span>
               </div>
               <p class="muted"><strong>10 XP</strong> za každý splněný úkol a <strong>+2 XP</strong> za podúkol.</p>
@@ -604,7 +685,7 @@
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>🔁 Fokus & Dlouhodobé aktivity</span>
+                <span>Fokus & Dlouhodobé aktivity</span>
                 <span class="badge badge-gym mono">Cap 50 + 15 XP / den</span>
               </div>
               <p class="muted"><strong>10 XP</strong> za denní odškrtnutí aktivity. Při splnění <strong>100 % dne</strong> (min. 3 aktivní aktivity) získáš <strong>+15 XP combo</strong>. Uzavření cíle (Hotovo) dá <strong>5 XP × odpracované dny</strong> (min. 5 dnů, max 150 XP).</p>
@@ -612,7 +693,7 @@
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>⏱️ Čas fokusu (Deep Work)</span>
+                <span>Čas fokusu (Deep Work)</span>
                 <span class="badge badge-gym mono">Cap 120 XP / den</span>
               </div>
               <p class="muted">První 3 hodiny dávají <strong>0.5 XP / min</strong> (90 XP). Nad 3 hodiny klesá výnos na <strong>0.25 XP / min</strong>. Dokončený milník v roadmapě dá <strong>+25 XP</strong> (max 2 / den).</p>
@@ -620,7 +701,7 @@
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>🏋️ Tréninky (Gym)</span>
+                <span>Tréninky (Gym)</span>
                 <span class="badge badge-gym mono">Cap 80 XP / den</span>
               </div>
               <p class="muted"><strong>40 XP</strong> za zapsaný trénink + <strong>2 XP</strong> za každou pracovní sérii (zahřívací série <strong>W</strong> se nepočítají).</p>
@@ -628,7 +709,7 @@
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>📊 Tělo & Strava</span>
+                <span>Tělo & Strava</span>
                 <span class="badge badge-gym mono">Cap 55 XP / den</span>
               </div>
               <p class="muted"><strong>15 XP</strong> denní zápis + <strong>15 XP</strong> splněné bílkoviny + <strong>15 XP</strong> splněné kroky + <strong>10 XP</strong> spánek ≥ 7 hodin.</p>
@@ -636,7 +717,7 @@
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>📸 Fotky progresu</span>
+                <span>Fotky progresu</span>
                 <span class="badge badge-gym mono">Cap 15 XP / týden</span>
               </div>
               <p class="muted"><strong>+15 XP</strong> za nahranou fotku, maximálně <strong>1 bodovaná fotka za kalendářní týden</strong> (nahrávat jich ale můžeš kolik chceš).</p>
@@ -645,11 +726,11 @@
         </section>
 
         <section class="card stack-sm">
-          <h2>🔥 Streak Multiplikátor & Nekonečné Ranky</h2>
+          <h2>Streak Multiplikátor & Nekonečné Ranky</h2>
           <div class="xp-rules-grid">
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>🔥 Multiplikátor konzistence</span>
+                <span>Multiplikátor konzistence</span>
                 <span class="badge badge-medium mono">1.00× až 1.20×</span>
               </div>
               <p class="muted">Za každé <strong>3 dny aktivity v řadě</strong> (úkol, rutina, fokus, gym nebo zápis) roste tvůj denní XP multiplikátor o <strong>+4 %</strong> až do maxima <strong>1.20×</strong> (15+ dnů). Když řadu přerušíš, multiplikátor se vrátí na 1.00× — o dřívější XP nikdy nepřijdeš.</p>
@@ -657,7 +738,7 @@
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>👑 Levely & Ascension</span>
+                <span>Levely & Ascension</span>
                 <span class="badge badge-cardio mono">P0 → P∞</span>
               </div>
               <p class="muted">Každý další level vyžaduje mírně víc XP (<span class="mono">140 × L^1.22</span>). Každé <strong>2 levely</strong> postoupíš o divizi (<span class="mono">III → II → I</span>) napříč 10 tiery (<span class="mono">IRON → MYTHIC</span>). Po Levelu 60 se otevírá nekonečný cyklus <strong>Ascension P1, P2, P3... ∞</strong>.</p>

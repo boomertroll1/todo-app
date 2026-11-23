@@ -45,6 +45,7 @@ const el = {
   todosSubtabs: document.querySelectorAll('.todos-subtab'),
   todosPanelMain: document.getElementById('todos-panel-main'),
   todosPanelFocus: document.getElementById('todos-panel-focus'),
+  todosPanelTutoring: document.getElementById('todos-panel-tutoring'),
   todosPanelClean: document.getElementById('todos-panel-clean'),
 
   ranksSubtabs: document.querySelectorAll('.ranks-subtab'),
@@ -203,7 +204,6 @@ function showView(name) {
   el.appView.classList.toggle('hidden', name !== 'app');
 }
 
-// --- Upozornění na nezapsaný den ---
 if (el.reminderDismissBtn) {
   el.reminderDismissBtn.addEventListener('click', () => {
     localStorage.setItem('dismissedReminderDate', getTodayLocal());
@@ -215,7 +215,6 @@ el.reminderGoBtns.forEach((btn) => {
   btn.addEventListener('click', () => switchModule(btn.dataset.reminderGo));
 });
 
-// --- Podzáložky v Úkolech ---
 function switchTodosSubtab(tabName) {
   state.activeTodosTab = tabName;
   el.todosSubtabs.forEach((btn) => {
@@ -223,9 +222,11 @@ function switchTodosSubtab(tabName) {
   });
   if (el.todosPanelMain) el.todosPanelMain.classList.toggle('hidden', tabName !== 'main');
   if (el.todosPanelFocus) el.todosPanelFocus.classList.toggle('hidden', tabName !== 'focus');
+  if (el.todosPanelTutoring) el.todosPanelTutoring.classList.toggle('hidden', tabName !== 'tutoring');
   if (el.todosPanelClean) el.todosPanelClean.classList.toggle('hidden', tabName !== 'clean');
 
   if (tabName === 'focus') window.FocusModule?.onShow();
+  if (tabName === 'tutoring') window.TutoringModule?.refresh();
   if (tabName === 'clean') window.CleanModule?.refresh();
 }
 
@@ -233,7 +234,6 @@ el.todosSubtabs.forEach((btn) => {
   btn.addEventListener('click', () => switchTodosSubtab(btn.dataset.todosTab));
 });
 
-// --- Podzáložky v Rancích ---
 function switchRanksSubtab(tabName) {
   state.activeRanksTab = tabName;
   el.ranksSubtabs.forEach((btn) => {
@@ -269,7 +269,7 @@ function switchModule(moduleName) {
   el.moduleRanks.classList.toggle('hidden', moduleName !== 'ranks');
 
   const titles = {
-    todos: 'Úkoly, Fokus & Disciplína',
+    todos: 'Úkoly, Fokus & Doučování',
     calendar: 'Kalendář',
     gym: 'Tělo & Strava',
     workouts: 'Tréninky & Síla',
@@ -294,7 +294,6 @@ el.moduleTabs.forEach((tab) => {
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- Přílohy (fotky) u úkolů ---
 async function handleImageFiles(files, targetArray, renderFn) {
   const imageFiles = Array.from(files || []).filter((f) => f.type.startsWith('image/'));
   if (!imageFiles.length) return;
@@ -411,7 +410,6 @@ el.editDialog.addEventListener('paste', async (e) => {
   showToast('Obrázek vložen ze schránky.');
 });
 
-// --- Návrhové podúkoly ---
 function renderDraftSubtasks() {
   el.subtaskDraftList.innerHTML = state.draftSubtasks
     .map(
@@ -447,7 +445,6 @@ el.subtaskDraftList.addEventListener('click', (e) => {
   renderDraftSubtasks();
 });
 
-// --- Podúkoly v editačním dialogu ---
 function renderEditSubtasks() {
   el.editSubtaskList.innerHTML = state.editSubtasks
     .map(
@@ -483,7 +480,6 @@ el.editSubtaskList.addEventListener('click', (e) => {
   renderEditSubtasks();
 });
 
-// --- Úkoly ---
 async function fetchTodos() {
   const { data, error } = await db
     .from('todos')
@@ -617,7 +613,6 @@ function renderTodos() {
     .join('');
 }
 
-// --- Autentizace ---
 el.loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   el.loginBtn.disabled = true;
@@ -641,6 +636,7 @@ el.refreshBtn.addEventListener('click', () => {
   fetchTodos();
   window.CleanModule?.refresh();
   window.FocusModule?.refresh();
+  window.TutoringModule?.refresh();
   window.CalendarModule?.refresh();
   window.GymModule?.refresh();
   window.WorkoutsModule?.refresh();
@@ -853,6 +849,7 @@ document.addEventListener('visibilitychange', () => {
     fetchTodos();
     window.CleanModule?.refresh();
     window.FocusModule?.refresh();
+    window.TutoringModule?.refresh();
     window.CalendarModule?.refresh();
     window.GymModule?.refresh();
     window.WorkoutsModule?.refresh();
@@ -867,6 +864,7 @@ function onSignedIn(user) {
   fetchTodos();
   window.CleanModule?.init(db, user);
   window.FocusModule?.init(db, user);
+  window.TutoringModule?.init(db, user);
   window.CalendarModule?.init(db, user);
   window.GymModule?.init(db, user);
   window.WorkoutsModule?.init(db, user);
@@ -881,6 +879,7 @@ db.auth.onAuthStateChange((_event, session) => {
     state.todos = [];
     window.CleanModule?.reset();
     window.FocusModule?.reset();
+    window.TutoringModule?.reset();
     window.CalendarModule?.reset();
     window.GymModule?.reset();
     window.WorkoutsModule?.reset();
