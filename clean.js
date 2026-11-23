@@ -12,7 +12,6 @@ window.CleanModule = (() => {
   function cacheElements() {
     el.form = document.getElementById('clean-add-form');
     el.nameInput = document.getElementById('clean-name-input');
-    el.iconInput = document.getElementById('clean-icon-input');
     el.colorInput = document.getElementById('clean-color-input');
     el.startInput = document.getElementById('clean-start-input');
     el.yearLabel = document.getElementById('clean-year-label');
@@ -206,7 +205,6 @@ window.CleanModule = (() => {
           <article class="card skill-card" style="--skill-color: ${t.color || '#10b981'};">
             <div class="skill-card-head">
               <div class="skill-title-wrap">
-                <span class="skill-icon">${escapeHtml(t.icon || '🛡️')}</span>
                 <div>
                   <div class="skill-name-row">
                     <h3>${escapeHtml(t.name)}</h3>
@@ -220,10 +218,10 @@ window.CleanModule = (() => {
 
               <div class="skill-head-actions">
                 <span class="clean-streak-pill mono ${stats.currentStreak > 0 ? 'active' : ''}" title="Aktuální čistý streak">
-                  🔥 ${stats.currentStreak}d čistý
+                  ${stats.currentStreak}d čistý
                 </span>
                 <button type="button" class="btn-relapse ${relapsedToday ? 'is-relapsed' : ''}" data-relapse-today="${t.id}" title="Označit nebo zrušit dnešní selhání">
-                  ${relapsedToday ? '↺ Zrušit selhání dnes' : '⚠ Selhání dnes'}
+                  ${relapsedToday ? '↺ Zrušit selhání dnes' : 'Selhání dnes'}
                 </button>
                 <button type="button" class="icon-btn delete" data-del-clean="${t.id}" title="Smazat tracker">✕</button>
               </div>
@@ -291,28 +289,40 @@ window.CleanModule = (() => {
     if (el.form) {
       el.form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!user) return;
-        const name = el.nameInput.value.trim();
-        if (!name) return;
-
-        const { error } = await db.from('clean_trackers').insert([
-          {
-            user_id: user.id,
-            name,
-            icon: el.iconInput.value.trim() || '🛡️',
-            color: el.colorInput.value || '#10b981',
-            start_date: el.startInput.value || todayStr(),
-          },
-        ]);
-
-        if (error) {
-          window.appShowError(`Chyba přidání: ${error.message}`);
+        if (!user || !db) {
+          window.appShowError('Nejsi přihlášený.');
           return;
         }
+        const name = (el.nameInput?.value || '').trim();
+        if (!name) return;
 
-        el.nameInput.value = '';
-        window.appShowToast(`Tracker „${name}“ přidán.`);
-        await loadAll();
+        const submitBtn = el.form.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+
+        try {
+          const { error } = await db.from('clean_trackers').insert([
+            {
+              user_id: user.id,
+              name,
+              icon: '',
+              color: el.colorInput?.value || '#10b981',
+              start_date: el.startInput?.value || todayStr(),
+            },
+          ]);
+
+          if (error) {
+            window.appShowError(`Chyba přidání: ${error.message}`);
+            return;
+          }
+
+          if (el.nameInput) el.nameInput.value = '';
+          window.appShowToast(`Tracker „${name}“ přidán.`);
+          await loadAll();
+        } catch (err) {
+          window.appShowError(`Chyba: ${err.message}`);
+        } finally {
+          if (submitBtn) submitBtn.disabled = false;
+        }
       });
     }
 
