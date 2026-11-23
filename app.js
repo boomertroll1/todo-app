@@ -227,6 +227,7 @@ function switchTodosSubtab(tabName) {
   if (el.todosPanelTutoring) el.todosPanelTutoring.classList.toggle('hidden', tabName !== 'tutoring');
   if (el.todosPanelClean) el.todosPanelClean.classList.toggle('hidden', tabName !== 'clean');
 
+  if (tabName === 'main') window.RemindersModule?.refresh();
   if (tabName === 'focus') window.FocusModule?.onShow();
   if (tabName === 'schedule') window.ScheduleModule?.refresh();
   if (tabName === 'tutoring') window.TutoringModule?.refresh();
@@ -637,6 +638,7 @@ el.logoutBtn.addEventListener('click', async () => {
 
 el.refreshBtn.addEventListener('click', () => {
   fetchTodos();
+  window.RemindersModule?.refresh();
   window.CleanModule?.refresh();
   window.FocusModule?.refresh();
   window.ScheduleModule?.refresh();
@@ -851,6 +853,7 @@ el.clearCompletedBtn.addEventListener('click', async () => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.user) {
     fetchTodos();
+    window.RemindersModule?.refresh();
     window.CleanModule?.refresh();
     window.FocusModule?.refresh();
     window.ScheduleModule?.refresh();
@@ -867,6 +870,7 @@ function onSignedIn(user) {
   showView('app');
   switchModule(state.activeModule);
   fetchTodos();
+  window.RemindersModule?.init(db, user);
   window.CleanModule?.init(db, user);
   window.FocusModule?.init(db, user);
   window.ScheduleModule?.init(db, user);
@@ -883,6 +887,7 @@ db.auth.onAuthStateChange((_event, session) => {
   } else {
     state.user = null;
     state.todos = [];
+    window.RemindersModule?.reset();
     window.CleanModule?.reset();
     window.FocusModule?.reset();
     window.ScheduleModule?.reset();

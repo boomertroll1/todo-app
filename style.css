@@ -2830,3 +2830,65 @@ input[type="time"]:focus {
     min-width: auto;
   }
 }
+/* === KAŽDODENNÍ PŘIPOMÍNKY === */
+.reminders-add-grid {
+  display: grid;
+  grid-template-columns: 1fr 125px auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.reminder-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: rgba(7, 9, 15, 0.72);
+  border: 1px solid var(--border);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.reminder-row.done {
+  opacity: 0.68;
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.reminder-row.done .reminder-row-title {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.reminder-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reminder-row-title {
+  font-weight: 600;
+  font-size: 0.93rem;
+}
+
+.reminder-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot-rem {
+  background: #34d399;
+}
+
+@media (max-width: 640px) {
+  .reminders-add-grid {
+    grid-template-columns: 1fr 115px;
+  }
+  .reminders-add-grid .btn-primary {
+    grid-column: 1 / -1;
+  }
+}

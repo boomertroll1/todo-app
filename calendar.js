@@ -15,6 +15,8 @@ window.CalendarModule = (() => {
     focusPlans: [],
     tutoring: [],
     schedule: [],
+    reminders: [],
+    reminderLogs: [],
   };
 
   const MONTH_NAMES = [
@@ -120,18 +122,31 @@ window.CalendarModule = (() => {
   async function loadAll() {
     if (!db || !user) return;
 
-    const [todosRes, logsRes, woRes, photosRes, skillsRes, sessRes, plansRes, tutorRes, schedRes] =
-      await Promise.all([
-        db.from('todos').select('id, title, is_completed, due_date'),
-        db.from('daily_logs').select('log_date, day_type, weight_kg, kcal, protein_g, steps, sleep_hours').limit(500),
-        db.from('workouts').select('id, workout_date, name, duration_min').limit(500),
-        db.from('user_photos').select('id, photo_date, category, caption, image_data').limit(120),
-        db.from('focus_skills').select('id, name, color'),
-        db.from('focus_sessions').select('skill_id, session_date, minutes, notes').limit(5000),
-        db.from('focus_plans').select('id, skill_id, plan_date, target_minutes').limit(1000),
-        db.from('tutoring_sessions').select('*').limit(1000),
-        db.from('school_schedule').select('*').order('start_time', { ascending: true }),
-      ]);
+    const [
+      todosRes,
+      logsRes,
+      woRes,
+      photosRes,
+      skillsRes,
+      sessRes,
+      plansRes,
+      tutorRes,
+      schedRes,
+      remRes,
+      remLogsRes,
+    ] = await Promise.all([
+      db.from('todos').select('id, title, is_completed, due_date'),
+      db.from('daily_logs').select('log_date, day_type, weight_kg, kcal, protein_g, steps, sleep_hours').limit(500),
+      db.from('workouts').select('id, workout_date, name, duration_min').limit(500),
+      db.from('user_photos').select('id, photo_date, category, caption, image_data').limit(120),
+      db.from('focus_skills').select('id, name, color'),
+      db.from('focus_sessions').select('skill_id, session_date, minutes, notes').limit(5000),
+      db.from('focus_plans').select('id, skill_id, plan_date, target_minutes').limit(1000),
+      db.from('tutoring_sessions').select('*').limit(1000),
+      db.from('school_schedule').select('*').order('start_time', { ascending: true }),
+      db.from('daily_reminders').select('id, title, frequency, is_active'),
+      db.from('daily_reminder_logs').select('reminder_id, log_date').limit(5000),
+    ]);
 
     cache = {
       todos: todosRes.data || [],
@@ -143,6 +158,8 @@ window.CalendarModule = (() => {
       focusPlans: plansRes.data || [],
       tutoring: tutorRes.data || [],
       schedule: schedRes.data || [],
+      reminders: remRes.data || [],
+      reminderLogs: remLogsRes.data || [],
     };
 
     render();
@@ -177,6 +194,7 @@ window.CalendarModule = (() => {
           focusSessions: [],
           focusPlans: [],
           tutoring: [],
+          reminderIds: new Set(),
         };
       }
       return byDate[d];
@@ -202,6 +220,9 @@ window.CalendarModule = (() => {
     });
     cache.tutoring.forEach((t) => {
       if (t.lesson_date) ensure(t.lesson_date).tutoring.push(t);
+    });
+    cache.reminderLogs.forEach((rl) => {
+      if (rl.log_date) ensure(rl.log_date).reminderIds.add(rl.reminder_id);
     });
 
     const firstDay = new Date(year, month, 1);
@@ -229,6 +250,7 @@ window.CalendarModule = (() => {
 
       if (info) {
         if (info.todos.length) dots.push('<i class="cal-dot dot-todo" title="Úkoly"></i>');
+        if (info.reminderIds.size) dots.push('<i class="cal-dot dot-rem" title="Splněné připomínky"></i>');
         if (info.focusPlans.length || info.focusSessions.length) {
           dots.push('<i class="cal-dot dot-focus" title="Fokus / Plán"></i>');
         }
@@ -266,6 +288,7 @@ window.CalendarModule = (() => {
 
     const dayTutoring = info?.tutoring || [];
     const conflicts = detectDayConflicts(dayClasses, dayTutoring);
+    const doneRemIds = info?.reminderIds || new Set();
 
     if (!info && !dayClasses.length) {
       el.detailBody.innerHTML = '<p class="muted">Pro tento den zatím nejsou žádné záznamy ani plány.</p>';
@@ -273,6 +296,7 @@ window.CalendarModule = (() => {
     }
 
     const skillMap = new Map(cache.focusSkills.map((s) => [s.id, s]));
+    const remMap = new Map(cache.reminders.map((r) => [r.id, r]));
     const blocks = [];
 
     if (conflicts.size > 0) {
@@ -311,7 +335,18 @@ window.CalendarModule = (() => {
       blocks.push(`<div class="cal-detail-block"><h4>Doučování</h4><ul>${items}</ul></div>`);
     }
 
-    // 3. Fokus plán & odpracovaný čas
+    // 3. Splněné každodenní připomínky
+    if (doneRemIds.size) {
+      const items = [...doneRemIds]
+        .map((rid) => {
+          const r = remMap.get(rid);
+          return `<li>✅ ${escapeHtml(r?.title || 'Připomínka')}</li>`;
+        })
+        .join('');
+      blocks.push(`<div class="cal-detail-block"><h4>Každodenní připomínky</h4><ul>${items}</ul></div>`);
+    }
+
+    // 4. Fokus plán & odpracovaný čas
     if (info && (info.focusPlans.length || info.focusSessions.length)) {
       const loggedBySkill = {};
       info.focusSessions.forEach((s) => {
@@ -343,7 +378,7 @@ window.CalendarModule = (() => {
       blocks.push(`<div class="cal-detail-block"><h4>Fokus & Plán učení</h4><ul>${lines.join('')}</ul></div>`);
     }
 
-    // 4. Úkoly
+    // 5. Úkoly
     if (info && info.todos.length) {
       const items = info.todos
         .map((t) => `<li>${t.is_completed ? '✅' : '⬜'} ${escapeHtml(t.title)}</li>`)
@@ -351,7 +386,7 @@ window.CalendarModule = (() => {
       blocks.push(`<div class="cal-detail-block"><h4>Úkoly</h4><ul>${items}</ul></div>`);
     }
 
-    // 5. Tréninky
+    // 6. Tréninky
     if (info && info.workouts.length) {
       const items = info.workouts
         .map((w) => `<li>🏋️ <strong>${escapeHtml(w.name)}</strong>${w.duration_min ? ` <span class="mono muted">(${w.duration_min} min)</span>` : ''}</li>`)
@@ -359,7 +394,7 @@ window.CalendarModule = (() => {
       blocks.push(`<div class="cal-detail-block"><h4>Tréninky</h4><ul>${items}</ul></div>`);
     }
 
-    // 6. Denní log
+    // 7. Denní log
     if (info && info.log) {
       const l = info.log;
       const parts = [];
@@ -373,7 +408,7 @@ window.CalendarModule = (() => {
       );
     }
 
-    // 7. Fotky
+    // 8. Fotky
     if (info && info.photos.length) {
       const imgs = info.photos
         .map(
@@ -449,6 +484,8 @@ window.CalendarModule = (() => {
         focusPlans: [],
         tutoring: [],
         schedule: [],
+        reminders: [],
+        reminderLogs: [],
       };
     },
   };

@@ -23,6 +23,7 @@
   <script src="./focus.js" defer></script>
   <script src="./schedule.js" defer></script>
   <script src="./tutoring.js" defer></script>
+  <script src="./reminders.js" defer></script>
   <script src="./clean.js" defer></script>
   <script src="./achievements.js" defer></script>
   <script src="./progress.js" defer></script>
@@ -124,8 +125,35 @@
         <button type="button" class="chip todos-subtab" data-todos-tab="clean">Dny bez…</button>
       </div>
 
-      <!-- Podpanel A: Čistě Jednorázové úkoly s deadlinem -->
+      <!-- Podpanel A: Každodenní připomínky + Jednorázové úkoly -->
       <div id="todos-panel-main" class="stack">
+        <!-- Každodenní opakované připomínky (o půlnoci se samy resetují) -->
+        <section class="card stack-sm">
+          <div class="card-header-row">
+            <div>
+              <h2>Každodenní připomínky</h2>
+              <span class="muted">Zadá se jednou a každý den se samy resetují (Kreatin, Vitamíny, Voda...) · 5 XP / ks (cap 25 XP/d)</span>
+            </div>
+            <span id="reminders-progress-text" class="mono muted">0 / 0 dnes</span>
+          </div>
+
+          <div class="subtask-progress-track">
+            <div id="reminders-progress-fill" class="subtask-progress-fill" style="width: 0%;"></div>
+          </div>
+
+          <div id="reminders-list" class="stack-sm"></div>
+
+          <form id="reminders-add-form" class="reminders-add-grid">
+            <input id="reminder-title-input" type="text" maxlength="100" placeholder="+ Přidat opakovanou připomínku (např. Vzít kreatin 10 g)..." required autocomplete="off">
+            <select id="reminder-freq-input" aria-label="Opakování">
+              <option value="daily">Každý den</option>
+              <option value="weekdays">Po–Pá</option>
+              <option value="weekends">Víkend</option>
+            </select>
+            <button type="submit" class="btn btn-primary">+ Přidat</button>
+          </form>
+        </section>
+
         <form id="todo-form" class="card stack-sm">
           <div class="card-header-row">
             <div>
@@ -447,6 +475,7 @@
           <span><i class="cal-dot dot-conflict"></i> Kolize</span>
           <span><i class="cal-dot dot-sched"></i> Rozvrh</span>
           <span><i class="cal-dot dot-todo"></i> Úkol</span>
+          <span><i class="cal-dot dot-rem"></i> Připomínky</span>
           <span><i class="cal-dot dot-focus"></i> Fokus / Plán</span>
           <span><i class="cal-dot dot-tutor"></i> Doučování</span>
           <span><i class="cal-dot dot-gym"></i> Gym den</span>
@@ -747,6 +776,14 @@
           <div class="xp-rules-grid">
             <div class="xp-rule-card">
               <div class="xp-rule-head">
+                <span>Každodenní připomínky</span>
+                <span class="badge badge-gym mono">Cap 25 XP / den</span>
+              </div>
+              <p class="muted"><strong>5 XP</strong> za každé odškrtnutí opakované připomínky (Kreatin, Vitamíny apod.). O půlnoci se položky samy resetují pro další den.</p>
+            </div>
+
+            <div class="xp-rule-card">
+              <div class="xp-rule-head">
                 <span>Jednorázové úkoly</span>
                 <span class="badge badge-gym mono">Cap 50 XP / den</span>
               </div>
@@ -819,7 +856,7 @@
                 <span>Multiplikátor konzistence</span>
                 <span class="badge badge-medium mono">1.00× až 1.20×</span>
               </div>
-              <p class="muted">Za každé <strong>3 dny aktivity v řadě</strong> (úkol, rutina, fokus, doučování, gym nebo zápis) roste tvůj denní XP multiplikátor o <strong>+4 %</strong> až do maxima <strong>1.20×</strong> (15+ dnů). Když řadu přerušíš, multiplikátor se vrátí na 1.00× — o dřívější XP nikdy nepřijdeš.</p>
+              <p class="muted">Za každé <strong>3 dny aktivity v řadě</strong> (úkol, připomínka, fokus, doučování, gym nebo zápis) roste tvůj denní XP multiplikátor o <strong>+4 %</strong> až do maxima <strong>1.20×</strong> (15+ dnů). Když řadu přerušíš, multiplikátor se vrátí na 1.00× — o dřívější XP nikdy nepřijdeš.</p>
             </div>
 
             <div class="xp-rule-card">

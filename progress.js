@@ -14,6 +14,7 @@ window.ProgressModule = (() => {
     tutoring: [],
     cleanTrackers: [],
     cleanRelapses: [],
+    reminderLogs: [],
   };
   let photoFilter = 'all';
   let achCatFilter = 'all';
@@ -261,6 +262,7 @@ window.ProgressModule = (() => {
       tutorRes,
       cleanTRes,
       cleanRRes,
+      remLogsRes,
     ] = await Promise.all([
       db.from('todos').select('id, is_completed, priority, subtasks, created_at, completed_at'),
       db.from('daily_logs').select('*').order('log_date', { ascending: true }).limit(500),
@@ -274,6 +276,7 @@ window.ProgressModule = (() => {
       db.from('tutoring_sessions').select('lesson_date, duration_min, is_completed').limit(1000),
       db.from('clean_trackers').select('id, start_date'),
       db.from('clean_relapses').select('tracker_id, relapse_date').limit(5000),
+      db.from('daily_reminder_logs').select('reminder_id, log_date').limit(5000),
     ]);
 
     dataCache = {
@@ -289,6 +292,7 @@ window.ProgressModule = (() => {
       tutoring: tutorRes.data || [],
       cleanTrackers: cleanTRes.data || [],
       cleanRelapses: cleanRRes.data || [],
+      reminderLogs: remLogsRes.data || [],
     };
 
     renderAll();
@@ -310,6 +314,7 @@ window.ProgressModule = (() => {
       tutoring,
       cleanTrackers,
       cleanRelapses,
+      reminderLogs,
     } = dataCache;
 
     const todayStr = toDateStr(new Date());
@@ -319,6 +324,7 @@ window.ProgressModule = (() => {
       if (!daily[d]) {
         daily[d] = {
           todoRaw: 0,
+          remindersDone: 0,
           focusMin: 0,
           focusMinBySkill: {},
           milestones: 0,
@@ -354,6 +360,12 @@ window.ProgressModule = (() => {
         if (t.priority === 'high') completedHighTodos++;
         if (bucket) bucket.todoRaw += 10;
       }
+    });
+
+    // 1b. Každodenní připomínky (5 XP / splněná připomínka, cap 25 XP / den)
+    reminderLogs.forEach((rl) => {
+      const bucket = ensureDay(rl.log_date);
+      if (bucket) bucket.remindersDone++;
     });
 
     // 2. Denní log Tělo & Strava (cap 55 XP / den)
@@ -521,6 +533,7 @@ window.ProgressModule = (() => {
     sortedDates.forEach((d) => {
       const b = daily[d];
       const dTodo = Math.min(50, b.todoRaw);
+      const dReminders = Math.min(25, b.remindersDone * 5);
       const dFocus =
         b.focusMin <= 180
           ? Math.round(b.focusMin * 0.5)
@@ -534,13 +547,12 @@ window.ProgressModule = (() => {
       const skillsDoneCount = b.skillsDoneSet.size;
       const dHabitBase = Math.min(50, skillsDoneCount * 10);
       const dHabitCombo = activeSkillsCount >= 3 && skillsDoneCount >= activeSkillsCount ? 15 : 0;
-      const dHabit = dHabitBase + dHabitCombo + b.graduationXp;
+      const dHabit = dHabitBase + dHabitCombo + b.graduationXp + dReminders;
       const dPhoto = b.photoXp;
 
       const activeBase = dTodo + dFocus + dMilestone + dPlan + dWorkout + dLog + dHabit + dTutoring + dPhoto;
       if (activeBase <= 0) return;
 
-      // Čistý den se přičte jen k aktivnímu dni (anti-AFK) a pokud nebylo žádné selhání
       const dClean =
         minCleanStart && d >= minCleanStart && d <= todayStr && !relapseDates.has(d) ? 10 : 0;
 
@@ -701,9 +713,9 @@ window.ProgressModule = (() => {
     }
 
     if (r.streak > 0) {
-      el.reminderText.innerHTML = `<strong>Dneska jsi ještě nic nezapsal!</strong> Zapiš váhu, fokus nebo odškrtni aktivitu, ať nepřijdeš o svůj <strong>${r.streak}denní streak</strong>.`;
+      el.reminderText.innerHTML = `<strong>Dneska jsi ještě nic nezapsal!</strong> Zapiš váhu, fokus nebo odškrtni připomínku, ať nepřijdeš o svůj <strong>${r.streak}denní streak</strong>.`;
     } else {
-      el.reminderText.innerHTML = `<strong>Dneska jsi ještě nic nezapsal!</strong> Zapiš denní log, odškrtni aktivitu nebo zapni Fokus.`;
+      el.reminderText.innerHTML = `<strong>Dneska jsi ještě nic nezapsal!</strong> Zapiš denní log, odškrtni připomínku nebo zapni Fokus.`;
     }
     el.reminderBanner.classList.remove('hidden');
   }
@@ -1138,6 +1150,7 @@ window.ProgressModule = (() => {
         tutoring: [],
         cleanTrackers: [],
         cleanRelapses: [],
+        reminderLogs: [],
       };
     },
   };
