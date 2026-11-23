@@ -215,7 +215,7 @@ el.reminderGoBtns.forEach((btn) => {
   btn.addEventListener('click', () => switchModule(btn.dataset.reminderGo));
 });
 
-// --- Podzáložky v Úkolech (Úkoly & Rutiny / Fokus & Dlouhodobé / Dny bez...) ---
+// --- Podzáložky v Úkolech ---
 function switchTodosSubtab(tabName) {
   state.activeTodosTab = tabName;
   el.todosSubtabs.forEach((btn) => {
@@ -248,7 +248,6 @@ el.ranksSubtabs.forEach((btn) => {
 });
 
 function switchModule(moduleName) {
-  // Přesměrování starého odkazu 'focus' přímo do podzáložky Fokus v Úkolech
   if (moduleName === 'focus') {
     state.activeTodosTab = 'focus';
     moduleName = 'todos';
@@ -295,7 +294,7 @@ el.moduleTabs.forEach((tab) => {
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- Správa příloh (fotek) u nového i upravovaného úkolu ---
+// --- Přílohy (fotky) u úkolů ---
 async function handleImageFiles(files, targetArray, renderFn) {
   const imageFiles = Array.from(files || []).filter((f) => f.type.startsWith('image/'));
   if (!imageFiles.length) return;
@@ -640,7 +639,6 @@ el.logoutBtn.addEventListener('click', async () => {
 
 el.refreshBtn.addEventListener('click', () => {
   fetchTodos();
-  window.HabitsModule?.refresh();
   window.CleanModule?.refresh();
   window.FocusModule?.refresh();
   window.CalendarModule?.refresh();
@@ -853,7 +851,6 @@ el.clearCompletedBtn.addEventListener('click', async () => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.user) {
     fetchTodos();
-    window.HabitsModule?.refresh();
     window.CleanModule?.refresh();
     window.FocusModule?.refresh();
     window.CalendarModule?.refresh();
@@ -868,7 +865,6 @@ function onSignedIn(user) {
   showView('app');
   switchModule(state.activeModule);
   fetchTodos();
-  window.HabitsModule?.init(db, user);
   window.CleanModule?.init(db, user);
   window.FocusModule?.init(db, user);
   window.CalendarModule?.init(db, user);
@@ -883,7 +879,6 @@ db.auth.onAuthStateChange((_event, session) => {
   } else {
     state.user = null;
     state.todos = [];
-    window.HabitsModule?.reset();
     window.CleanModule?.reset();
     window.FocusModule?.reset();
     window.CalendarModule?.reset();

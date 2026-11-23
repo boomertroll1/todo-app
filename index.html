@@ -21,7 +21,6 @@
   <script src="./workouts.js" defer></script>
   <script src="./calendar.js" defer></script>
   <script src="./focus.js" defer></script>
-  <script src="./habits.js" defer></script>
   <script src="./clean.js" defer></script>
   <script src="./achievements.js" defer></script>
   <script src="./progress.js" defer></script>
@@ -116,46 +115,13 @@
     <!-- MODUL 1: ÚKOLY, FOKUS & DNY BEZ... -->
     <section id="module-todos" class="module-panel">
       <div class="ranks-subtabs" role="tablist">
-        <button type="button" class="chip todos-subtab active" data-todos-tab="main">✅ Úkoly & Rutiny</button>
+        <button type="button" class="chip todos-subtab active" data-todos-tab="main">✅ Úkoly</button>
         <button type="button" class="chip todos-subtab" data-todos-tab="focus">⏱️ Fokus & Dlouhodobé</button>
         <button type="button" class="chip todos-subtab" data-todos-tab="clean">🛡️ Dny bez…</button>
       </div>
 
-      <!-- Podpanel A: Rutiny a Jednorázové úkoly -->
+      <!-- Podpanel A: Čistě Jednorázové úkoly s deadlinem -->
       <div id="todos-panel-main" class="stack">
-        <section class="card habits-card stack-sm">
-          <div class="card-header-row">
-            <div>
-              <h2>Denní rutiny</h2>
-              <span class="muted">Rychlé odškrtnutí každý den (Kreatin, 10k kroků, Strečink) · 10 XP/den</span>
-            </div>
-            <div class="habits-meta-right">
-              <span id="habits-combo-badge" class="badge badge-date mono">100 % (min. 3) = +15 XP Combo</span>
-              <span id="habits-progress-text" class="mono muted">0 / 0 dnes</span>
-            </div>
-          </div>
-
-          <div class="subtask-progress-track">
-            <div id="habits-progress-fill" class="subtask-progress-fill" style="width: 0%;"></div>
-          </div>
-
-          <div id="habits-list" class="habits-list"></div>
-
-          <form id="habits-add-form" class="habits-add-grid">
-            <input id="habit-name-input" type="text" maxlength="90" placeholder="+ Denní rutina (např. Kreatin, 10k kroků, Šachy)..." required>
-            <input id="habit-icon-input" type="text" maxlength="4" value="🔁" aria-label="Ikona" title="Emoji ikona">
-            <input id="habit-due-input" type="date" aria-label="Volitelný cíl do data" title="Volitelný cíl (prázdné = ∞ průběžně)">
-            <button type="submit" class="btn btn-primary">+ Přidat</button>
-          </form>
-
-          <details id="habits-completed-wrap" class="habits-archive hidden">
-            <summary class="habits-archive-summary">
-              <span>🎓 Zvládnuto / Hotovo navždy (<span id="habits-completed-count">0</span>)</span>
-            </summary>
-            <div id="habits-completed-list" class="habits-list" style="margin-top:8px;"></div>
-          </details>
-        </section>
-
         <form id="todo-form" class="card stack-sm">
           <div class="card-header-row">
             <div>
@@ -210,7 +176,7 @@
         <p id="empty-state" class="empty-state hidden">Žádné úkoly k zobrazení.</p>
       </div>
 
-      <!-- Podpanel B: Fokus, Dlouhodobé učení & Roční heatmapy (přesunuto sem) -->
+      <!-- Podpanel B: Fokus, Dlouhodobé učení, Rutiny & Roční heatmapy (vše v jednom) -->
       <div id="todos-panel-focus" class="stack hidden">
         <div id="focus-summary-bar" class="kpi-grid"></div>
 
@@ -244,7 +210,10 @@
 
         <form id="focus-add-skill-form" class="card stack-sm">
           <div class="card-header-row">
-            <h2>Dlouhodobé učení, Skilly & Roční heatmapy</h2>
+            <div>
+              <h2>Dlouhodobé učení, Rutiny & Roční heatmapy</h2>
+              <span class="muted">Odškrtni na 1 klik (+10 XP/d) nebo měř čas · 🎓 Hotovo navždy po zvládnutí</span>
+            </div>
             <div class="cal-nav">
               <button type="button" id="focus-prev-year" class="btn btn-ghost">◀</button>
               <span id="focus-year-label" class="focus-year-pill mono">2026</span>
@@ -252,16 +221,36 @@
             </div>
           </div>
 
+          <!-- Denní progress & Combo -->
+          <div class="focus-daily-bar">
+            <div class="habits-meta-right">
+              <span id="focus-combo-badge" class="badge badge-date mono">100 % (min. 3) = +15 XP Combo</span>
+              <span id="focus-progress-text" class="mono muted">0 / 0 dnes</span>
+            </div>
+            <div class="subtask-progress-track">
+              <div id="focus-progress-fill" class="subtask-progress-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+
           <div class="focus-add-grid">
-            <input id="focus-skill-name" type="text" maxlength="50" placeholder="Nová aktivita (např. Lean 4, Analýza, Python, Šachy)..." required>
+            <input id="focus-skill-name" type="text" maxlength="50" placeholder="Nová aktivita (např. Lean 4, Šachy, Kreatin)..." required>
             <input id="focus-skill-icon" type="text" maxlength="4" value="💻" aria-label="Ikona" title="Emoji ikona">
             <input id="focus-skill-color" type="color" value="#00f0ff" aria-label="Barva heatmapy" title="Barva heatmapy">
-            <input id="focus-skill-goal" type="number" min="5" max="600" value="30" placeholder="Cíl (min/d)" title="Denní cíl v minutách">
+            <input id="focus-skill-goal" type="number" min="5" max="600" value="30" placeholder="Cíl (min)" title="Denní cíl v minutách">
+            <input id="focus-skill-due" type="date" aria-label="Volitelný deadline" title="Volitelný cíl do data (prázdné = ∞ průběžně)">
             <button type="submit" class="btn btn-primary">+ Přidat</button>
           </div>
         </form>
 
         <div id="focus-skills-list" class="stack"></div>
+
+        <!-- Archiv zvládnutých / naučených aktivit -->
+        <details id="focus-completed-wrap" class="card habits-archive hidden">
+          <summary class="habits-archive-summary">
+            <span>🎓 Zvládnuto / Naučeno navždy (<span id="focus-completed-count">0</span>)</span>
+          </summary>
+          <div id="focus-completed-list" class="habits-list" style="margin-top:10px;"></div>
+        </details>
       </div>
 
       <!-- Podpanel C: Dny bez... (Streak + roční mřížka kostiček) -->
@@ -617,15 +606,15 @@
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>🔁 Denní rutiny</span>
+                <span>🔁 Fokus & Dlouhodobé aktivity</span>
                 <span class="badge badge-gym mono">Cap 50 + 15 XP / den</span>
               </div>
-              <p class="muted"><strong>10 XP</strong> za denní odškrtnutí. Při splnění <strong>100 % dne</strong> (min. 3 aktivní rutiny) získáš <strong>+15 XP combo</strong>. Uzavření cíle (🎓 Hotovo) dá <strong>5 XP × odpracované dny</strong> (min. 5 dnů, max 150 XP).</p>
+              <p class="muted"><strong>10 XP</strong> za denní odškrtnutí aktivity. Při splnění <strong>100 % dne</strong> (min. 3 aktivní aktivity) získáš <strong>+15 XP combo</strong>. Uzavření cíle (🎓 Hotovo) dá <strong>5 XP × odpracované dny</strong> (min. 5 dnů, max 150 XP).</p>
             </div>
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>⏱️ Fokus (Deep Work)</span>
+                <span>⏱️ Čas fokusu (Deep Work)</span>
                 <span class="badge badge-gym mono">Cap 120 XP / den</span>
               </div>
               <p class="muted">První 3 hodiny dávají <strong>0.5 XP / min</strong> (90 XP). Nad 3 hodiny klesá výnos na <strong>0.25 XP / min</strong>. Dokončený milník v roadmapě dá <strong>+25 XP</strong> (max 2 / den).</p>

@@ -11,6 +11,7 @@ window.FocusModule = (() => {
   let timerState = loadTimerState();
 
   const MONTH_SHORT = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'];
+  const QUICK_NOTE = 'Odškrtnuto';
   const el = {};
 
   function loadTimerState() {
@@ -38,6 +39,12 @@ window.FocusModule = (() => {
     el.nextYearBtn = document.getElementById('focus-next-year');
     el.summaryBar = document.getElementById('focus-summary-bar');
 
+    // Denní progress & combo (přesunuto z Denních rutin)
+    el.progressText = document.getElementById('focus-progress-text');
+    el.progressFill = document.getElementById('focus-progress-fill');
+    el.comboBadge = document.getElementById('focus-combo-badge');
+
+    // Časovač
     el.timerSkill = document.getElementById('timer-skill-select');
     el.timerModeBtns = document.querySelectorAll('.timer-mode-chip');
     el.timerPresetRow = document.getElementById('timer-preset-row');
@@ -47,14 +54,21 @@ window.FocusModule = (() => {
     el.timerStopSaveBtn = document.getElementById('timer-stop-save-btn');
     el.timerResetBtn = document.getElementById('timer-reset-btn');
 
+    // Přidání aktivity (včetně deadlinu)
     el.addSkillForm = document.getElementById('focus-add-skill-form');
     el.skillName = document.getElementById('focus-skill-name');
     el.skillIcon = document.getElementById('focus-skill-icon');
     el.skillColor = document.getElementById('focus-skill-color');
     el.skillGoal = document.getElementById('focus-skill-goal');
+    el.skillDue = document.getElementById('focus-skill-due');
 
+    // Seznam & archiv
     el.skillsList = document.getElementById('focus-skills-list');
+    el.completedWrap = document.getElementById('focus-completed-wrap');
+    el.completedList = document.getElementById('focus-completed-list');
+    el.completedCount = document.getElementById('focus-completed-count');
 
+    // Dialog ručního zápisu času
     el.logDialog = document.getElementById('focus-log-dialog');
     el.logForm = document.getElementById('focus-log-form');
     el.logTitle = document.getElementById('focus-log-title');
@@ -82,6 +96,45 @@ window.FocusModule = (() => {
 
   function todayStr() {
     return toDateStr(new Date());
+  }
+
+  function daysUntil(dateStr) {
+    if (!dateStr) return null;
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const now = new Date();
+    const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const targetUTC = Date.UTC(y, m - 1, d);
+    return Math.round((targetUTC - todayUTC) / 86400000);
+  }
+
+  function getUrgencyInfo(dueDate) {
+    if (!dueDate) {
+      return { cls: '', badge: '∞ Průběžně', badgeCls: 'badge-date', rank: 9999 };
+    }
+    const diff = daysUntil(dueDate);
+    if (diff < 0) {
+      return {
+        cls: 'urgency-overdue',
+        badge: `PO TERMÍNU (${Math.abs(diff)}d)`,
+        badgeCls: 'badge-overdue',
+        rank: diff,
+      };
+    }
+    if (diff === 0) {
+      return { cls: 'urgency-today', badge: 'CÍL DNES!', badgeCls: 'badge-overdue', rank: 0 };
+    }
+    if (diff <= 2) {
+      return {
+        cls: 'urgency-soon',
+        badge: diff === 1 ? 'Cíl zítra' : 'Cíl za 2 dny',
+        badgeCls: 'badge-high',
+        rank: diff,
+      };
+    }
+    if (diff <= 5) {
+      return { cls: 'urgency-near', badge: `Cíl za ${diff} dny`, badgeCls: 'badge-medium', rank: diff };
+    }
+    return { cls: '', badge: `Do ${dueDate} (${diff}d)`, badgeCls: 'badge-date', rank: diff };
   }
 
   function formatDuration(totalMin) {
@@ -148,14 +201,15 @@ window.FocusModule = (() => {
 
   function syncTimerSkillOptions() {
     if (!el.timerSkill) return;
-    if (!skills.length) {
+    const activeSkills = skills.filter((s) => !s.is_completed);
+    if (!activeSkills.length) {
       el.timerSkill.innerHTML = '<option value="">Nejdřív přidej aktivitu dole</option>';
       return;
     }
-    if (!timerState.skillId || !skills.some((s) => s.id === timerState.skillId)) {
-      timerState.skillId = skills[0].id;
+    if (!timerState.skillId || !activeSkills.some((s) => s.id === timerState.skillId)) {
+      timerState.skillId = activeSkills[0].id;
     }
-    el.timerSkill.innerHTML = skills
+    el.timerSkill.innerHTML = activeSkills
       .map(
         (s) =>
           `<option value="${s.id}" ${s.id === timerState.skillId ? 'selected' : ''}>${escapeHtml(s.icon)} ${escapeHtml(s.name)}</option>`
@@ -163,20 +217,20 @@ window.FocusModule = (() => {
       .join('');
   }
 
-  function computeSkillStreak(dateMinutesMap) {
+  function computeSkillStreak(dateMetaMap) {
     let streak = 0;
     const cursor = new Date();
-    if (!dateMinutesMap[toDateStr(cursor)]) {
+    if (!dateMetaMap[toDateStr(cursor)]) {
       cursor.setDate(cursor.getDate() - 1);
     }
-    while (dateMinutesMap[toDateStr(cursor)] > 0) {
+    while (dateMetaMap[toDateStr(cursor)]) {
       streak++;
       cursor.setDate(cursor.getDate() - 1);
     }
     return streak;
   }
 
-  function buildHeatmapHtml(skill, dateMinutesMap, year) {
+  function buildHeatmapHtml(skill, dateMetaMap, year) {
     const jan1 = new Date(year, 0, 1);
     const dec31 = new Date(year, 11, 31);
     const today = todayStr();
@@ -203,7 +257,7 @@ window.FocusModule = (() => {
         days.push({
           inYear,
           dateStr: dStr,
-          minutes: inYear ? dateMinutesMap[dStr] || 0 : 0,
+          meta: inYear ? dateMetaMap[dStr] || null : null,
           isToday: dStr === today,
         });
         cursor.setDate(cursor.getDate() + 1);
@@ -228,13 +282,20 @@ window.FocusModule = (() => {
             if (!cell.inYear) return '<span class="hm-cell hm-out"></span>';
 
             let bg = 'rgba(255, 255, 255, 0.05)';
-            if (cell.minutes > 0) {
-              const ratio = cell.minutes / goal;
-              const alpha = ratio >= 1.5 ? 1 : ratio >= 1 ? 0.78 : ratio >= 0.5 ? 0.52 : 0.3;
-              bg = hexToRgba(skill.color, alpha);
+            let labelTxt = '0m';
+            if (cell.meta) {
+              if (cell.meta.realMin > 0) {
+                const ratio = cell.meta.realMin / goal;
+                const alpha = ratio >= 1.5 ? 1 : ratio >= 1 ? 0.78 : ratio >= 0.5 ? 0.52 : 0.32;
+                bg = hexToRgba(skill.color, alpha);
+                labelTxt = formatDuration(cell.meta.realMin);
+              } else if (cell.meta.quickCheck) {
+                bg = hexToRgba(skill.color, 0.82);
+                labelTxt = 'Splněno ✓';
+              }
             }
 
-            const title = `${cell.dateStr}: ${formatDuration(cell.minutes)} (klikni pro zápis)`;
+            const title = `${cell.dateStr}: ${labelTxt} (klikni pro zápis času)`;
             return `<button type="button" class="hm-cell ${cell.isToday ? 'hm-today' : ''}" style="background:${bg};" data-hm-skill="${skill.id}" data-hm-date="${cell.dateStr}" title="${title}" aria-label="${title}"></button>`;
           })
           .join('');
@@ -290,14 +351,14 @@ window.FocusModule = (() => {
             ${
               ms.length
                 ? `<div class="ms-mini-track"><div class="ms-mini-fill" style="width:${pct}%; background:${skill.color};"></div></div><span class="mono" style="font-size:0.74rem; color:${skill.color};">${pct}%</span>`
-                : '<span class="muted" style="font-size:0.76rem;">+50 XP / milník</span>'
+                : '<span class="muted" style="font-size:0.76rem;">+25 XP / milník</span>'
             }
           </div>
         </summary>
         <div class="ms-body">
           <div class="ms-list">${itemsHtml}</div>
           <div class="ms-add-row">
-            <input type="text" class="ms-input" data-ms-input="${skill.id}" placeholder="+ Přidat kapitolu / milník (+50 XP, max 2/den)..." maxlength="120">
+            <input type="text" class="ms-input" data-ms-input="${skill.id}" placeholder="+ Přidat kapitolu / milník (+25 XP, max 2/den)..." maxlength="120">
             <button type="button" class="btn btn-ghost ms-add-btn" data-ms-add="${skill.id}">+ Přidat</button>
           </div>
         </div>
@@ -310,13 +371,56 @@ window.FocusModule = (() => {
     if (el.yearLabel) el.yearLabel.textContent = String(selectedYear);
 
     const today = todayStr();
-    const todayTotal = sessions
-      .filter((s) => s.session_date === today)
-      .reduce((sum, s) => sum + Number(s.minutes), 0);
-    const yearTotal = sessions
-      .filter((s) => s.session_date.startsWith(`${selectedYear}-`))
-      .reduce((sum, s) => sum + Number(s.minutes), 0);
-    const allTimeTotal = sessions.reduce((sum, s) => sum + Number(s.minutes), 0);
+
+    // Seskupení dat podle skillu a data
+    const metaBySkill = {};
+    const totalRealMinBySkill = {};
+    const yearRealMinBySkill = {};
+
+    let todayRealTotal = 0;
+    let yearRealTotal = 0;
+    let allTimeRealTotal = 0;
+
+    sessions.forEach((s) => {
+      const isQuick = s.notes === QUICK_NOTE;
+      const mins = isQuick ? 0 : Number(s.minutes) || 0;
+
+      if (!metaBySkill[s.skill_id]) metaBySkill[s.skill_id] = {};
+      if (!metaBySkill[s.skill_id][s.session_date]) {
+        metaBySkill[s.skill_id][s.session_date] = { realMin: 0, quickCheck: false };
+      }
+      if (isQuick) {
+        metaBySkill[s.skill_id][s.session_date].quickCheck = true;
+      } else {
+        metaBySkill[s.skill_id][s.session_date].realMin += mins;
+        totalRealMinBySkill[s.skill_id] = (totalRealMinBySkill[s.skill_id] || 0) + mins;
+        allTimeRealTotal += mins;
+        if (s.session_date === today) todayRealTotal += mins;
+        if (s.session_date.startsWith(`${selectedYear}-`)) {
+          yearRealMinBySkill[s.skill_id] = (yearRealMinBySkill[s.skill_id] || 0) + mins;
+          yearRealTotal += mins;
+        }
+      }
+    });
+
+    const activeSkills = skills.filter((s) => !s.is_completed);
+    const completedSkills = skills.filter((s) => s.is_completed);
+
+    // Denní progress a Combo badge (přesunuto z Denních rutin)
+    const doneTodayCount = activeSkills.filter((s) => Boolean(metaBySkill[s.id]?.[today])).length;
+    const totalActive = activeSkills.length;
+    const todayPct = totalActive ? Math.round((doneTodayCount / totalActive) * 100) : 0;
+
+    if (el.progressText) el.progressText.textContent = `${doneTodayCount} / ${totalActive} dnes`;
+    if (el.progressFill) el.progressFill.style.width = `${todayPct}%`;
+    if (el.comboBadge) {
+      const hasCombo = totalActive >= 3 && doneTodayCount === totalActive;
+      el.comboBadge.textContent = hasCombo
+        ? '⚡ COMBO +15 XP AKTIVNÍ'
+        : '100 % (min. 3) = +15 XP Combo';
+      el.comboBadge.classList.toggle('combo-active', hasCombo);
+    }
+
     const totalMilestonesDone = skills.reduce(
       (sum, sk) => sum + (sk.milestones || []).filter((m) => m.done).length,
       0
@@ -324,71 +428,116 @@ window.FocusModule = (() => {
 
     if (el.summaryBar) {
       el.summaryBar.innerHTML = [
-        `<div class="kpi-card kpi-glow"><span class="kpi-label">Dnes odpracováno</span><span class="kpi-value kpi-accent mono">${formatDuration(todayTotal)}</span><span class="kpi-sub">1 XP/min do 4h (cap 300 XP/d)</span></div>`,
-        `<div class="kpi-card"><span class="kpi-label">Rok ${selectedYear}</span><span class="kpi-value mono">${formatDuration(yearTotal)}</span><span class="kpi-sub">${skills.length} sledovaných aktivit</span></div>`,
-        `<div class="kpi-card"><span class="kpi-label">Celkový Deep Work</span><span class="kpi-value mono">${formatDuration(allTimeTotal)}</span><span class="kpi-sub">${totalMilestonesDone} splněných milníků</span></div>`,
+        `<div class="kpi-card kpi-glow"><span class="kpi-label">Dnes odpracováno</span><span class="kpi-value kpi-accent mono">${formatDuration(todayRealTotal)}</span><span class="kpi-sub">0.5 XP/min do 3h (cap 120 XP/d)</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">Rok ${selectedYear}</span><span class="kpi-value mono">${formatDuration(yearRealTotal)}</span><span class="kpi-sub">${activeSkills.length} aktivních · ${completedSkills.length} naučeno</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">Celkový Deep Work</span><span class="kpi-value mono">${formatDuration(allTimeRealTotal)}</span><span class="kpi-sub">${totalMilestonesDone} splněných milníků</span></div>`,
       ].join('');
     }
 
-    if (!skills.length) {
+    if (!activeSkills.length) {
       el.skillsList.innerHTML =
-        '<p class="empty-state">Zatím nemáš přidanou žádnou aktivitu. Přidej si třeba Lean 4, Matematiku, Kódování nebo Šachy.</p>';
-      return;
-    }
+        '<p class="empty-state">Zatím nemáš přidanou žádnou aktivitu. Přidej si třeba Lean 4, Trénink šachů, Kreatin nebo 10k kroků.</p>';
+    } else {
+      // Řazení: nesplněné dnes podle urgence deadlinu nahoře, splněné dnes níž
+      const sortedActive = [...activeSkills].sort((a, b) => {
+        const aDone = metaBySkill[a.id]?.[today] ? 1 : 0;
+        const bDone = metaBySkill[b.id]?.[today] ? 1 : 0;
+        if (aDone !== bDone) return aDone - bDone;
+        const ua = getUrgencyInfo(a.due_date).rank;
+        const ub = getUrgencyInfo(b.due_date).rank;
+        if (ua !== ub) return ua - ub;
+        return a.created_at.localeCompare(b.created_at);
+      });
 
-    const mapBySkill = {};
-    const totalBySkill = {};
-    const yearTotalBySkill = {};
-    sessions.forEach((s) => {
-      if (!mapBySkill[s.skill_id]) mapBySkill[s.skill_id] = {};
-      mapBySkill[s.skill_id][s.session_date] =
-        (mapBySkill[s.skill_id][s.session_date] || 0) + Number(s.minutes);
-      totalBySkill[s.skill_id] = (totalBySkill[s.skill_id] || 0) + Number(s.minutes);
-      if (s.session_date.startsWith(`${selectedYear}-`)) {
-        yearTotalBySkill[s.skill_id] = (yearTotalBySkill[s.skill_id] || 0) + Number(s.minutes);
-      }
-    });
+      el.skillsList.innerHTML = sortedActive
+        .map((skill) => {
+          const dateMap = metaBySkill[skill.id] || {};
+          const totalMin = totalRealMinBySkill[skill.id] || 0;
+          const yearMin = yearRealMinBySkill[skill.id] || 0;
+          const todayMeta = dateMap[today] || null;
+          const isDoneToday = Boolean(todayMeta);
+          const totalDays = Object.keys(dateMap).length;
+          const streak = computeSkillStreak(dateMap);
+          const skillLvl = Math.floor(totalMin / 300) + 1;
 
-    el.skillsList.innerHTML = skills
-      .map((skill) => {
-        const dateMap = mapBySkill[skill.id] || {};
-        const totalMin = totalBySkill[skill.id] || 0;
-        const yearMin = yearTotalBySkill[skill.id] || 0;
-        const todayMin = dateMap[today] || 0;
-        const streak = computeSkillStreak(dateMap);
-        const skillLvl = Math.floor(totalMin / 300) + 1;
+          const urg = isDoneToday
+            ? { ...getUrgencyInfo(skill.due_date), cls: '' }
+            : getUrgencyInfo(skill.due_date);
 
-        return `
-          <article class="card skill-card" style="--skill-color: ${skill.color};">
-            <div class="skill-card-head">
-              <div class="skill-title-wrap">
-                <span class="skill-icon">${escapeHtml(skill.icon)}</span>
-                <div>
-                  <div class="skill-name-row">
-                    <h3>${escapeHtml(skill.name)}</h3>
-                    <span class="skill-lvl mono">LVL ${skillLvl}</span>
+          const daysBadge =
+            totalDays > 0
+              ? `<span class="badge badge-date mono">Odpracováno: ${totalDays}d</span>`
+              : '';
+
+          return `
+            <article class="card skill-card ${isDoneToday ? 'skill-done-today' : ''} ${urg.cls}" style="--skill-color: ${skill.color};">
+              <div class="skill-card-head">
+                <div class="skill-title-wrap">
+                  <input type="checkbox" class="todo-checkbox skill-quick-check" data-quick-skill="${skill.id}" ${isDoneToday ? 'checked' : ''} title="Rychle odškrtnout dnešní den (+10 XP)">
+                  <span class="skill-icon">${escapeHtml(skill.icon)}</span>
+                  <div>
+                    <div class="skill-name-row">
+                      <h3>${escapeHtml(skill.name)}</h3>
+                      <span class="skill-lvl mono">LVL ${skillLvl}</span>
+                      <span class="badge ${urg.badgeCls}">${urg.badge}</span>
+                      ${daysBadge}
+                    </div>
+                    <div class="skill-time mono">
+                      ${formatDuration(yearMin)} <span class="muted">(${selectedYear}) · celkem ${formatDuration(totalMin)} · cíl ${skill.daily_goal_min}m/d</span>
+                    </div>
                   </div>
-                  <div class="skill-time mono">
-                    ${formatDuration(yearMin)} <span class="muted">(${selectedYear}) · celkem ${formatDuration(totalMin)} · cíl ${skill.daily_goal_min}m/d</span>
-                  </div>
+                </div>
+
+                <div class="skill-head-actions">
+                  <button type="button" class="btn-today ${todayMeta?.realMin > 0 ? 'done' : ''}" data-log-today="${skill.id}">
+                    ${todayMeta?.realMin > 0 ? `⏱ ${formatDuration(todayMeta.realMin)}` : '+ Čas'}
+                  </button>
+                  <span class="skill-streak mono ${streak > 0 ? 'active' : ''}" title="Streak aktivity">🔥 ${streak}</span>
+                  <button type="button" class="btn-finish-habit" data-finish-skill="${skill.id}" title="Uzavřít natrvalo jako naučené / dokončené (bonus XP od 5 dnů)">🎓 Hotovo</button>
+                  <button type="button" class="icon-btn delete" data-del-skill="${skill.id}" title="Smazat aktivitu">✕</button>
                 </div>
               </div>
 
-              <div class="skill-head-actions">
-                <button type="button" class="btn-today ${todayMin > 0 ? 'done' : ''}" data-log-today="${skill.id}">
-                  ${todayMin > 0 ? `✓ Dnes ${formatDuration(todayMin)}` : '+ Dnes'}
-                </button>
-                <span class="skill-streak mono ${streak > 0 ? 'active' : ''}" title="Streak aktivity">🔥 ${streak}</span>
-                <button type="button" class="icon-btn delete" data-del-skill="${skill.id}" title="Smazat aktivitu">✕</button>
+              ${buildHeatmapHtml(skill, dateMap, selectedYear)}
+              ${buildMilestonesHtml(skill)}
+            </article>
+          `;
+        })
+        .join('');
+    }
+
+    // Archiv zvládnutých / naučených aktivit
+    if (el.completedWrap && el.completedList && el.completedCount) {
+      el.completedWrap.classList.toggle('hidden', completedSkills.length === 0);
+      el.completedCount.textContent = String(completedSkills.length);
+      el.completedList.innerHTML = completedSkills
+        .map((skill) => {
+          const dateMap = metaBySkill[skill.id] || {};
+          const totalDays = Object.keys(dateMap).length;
+          const totalMin = totalRealMinBySkill[skill.id] || 0;
+          const bonus = totalDays >= 5 ? Math.min(150, totalDays * 5) : 0;
+          const doneDate = (skill.completed_at || '').slice(0, 10);
+          return `
+            <div class="habit-item done">
+              <div class="habit-main">
+                <span class="habit-icon">🎓</span>
+                <div class="habit-text-col">
+                  <span class="habit-name">${escapeHtml(skill.icon)} ${escapeHtml(skill.name)}</span>
+                  <div class="habit-sub-badges">
+                    <span class="badge badge-low">Zvládnuto ${doneDate}</span>
+                    <span class="badge badge-date mono">${totalDays}d · ${formatDuration(totalMin)} (+${bonus} XP bonus)</span>
+                  </div>
+                </div>
+              </div>
+              <div class="habit-right">
+                <button type="button" class="btn btn-ghost btn-xs" data-reopen-skill="${skill.id}" title="Znovu aktivovat">↺ Obnovit</button>
+                <button type="button" class="icon-btn delete" data-del-skill="${skill.id}" title="Smazat">✕</button>
               </div>
             </div>
-
-            ${buildHeatmapHtml(skill, dateMap, selectedYear)}
-            ${buildMilestonesHtml(skill)}
-          </article>
-        `;
-      })
-      .join('');
+          `;
+        })
+        .join('');
+    }
   }
 
   async function updateSkillMilestones(skillId, nextMilestones) {
@@ -497,7 +646,9 @@ window.FocusModule = (() => {
       return false;
     }
 
-    window.appShowToast(`Zapsáno ${formatDuration(minutes)} fokusu.`);
+    if (notes !== QUICK_NOTE) {
+      window.appShowToast(`Zapsáno ${formatDuration(minutes)} fokusu.`);
+    }
     await loadAll();
     window.ProgressModule?.refresh();
     return true;
@@ -552,11 +703,12 @@ window.FocusModule = (() => {
     });
 
     el.timerStartBtn.addEventListener('click', () => {
-      if (!skills.length) {
+      const activeSkills = skills.filter((s) => !s.is_completed);
+      if (!activeSkills.length) {
         window.appShowError('Nejdřív vytvoř alespoň jednu aktivitu.');
         return;
       }
-      timerState.skillId = el.timerSkill.value || skills[0].id;
+      timerState.skillId = el.timerSkill.value || activeSkills[0].id;
       if (timerState.running) {
         timerState.accumulatedSec = getElapsedSeconds();
         timerState.running = false;
@@ -610,6 +762,8 @@ window.FocusModule = (() => {
           icon: el.skillIcon.value.trim() || '⚡',
           color: el.skillColor.value || '#00f0ff',
           daily_goal_min: Number(el.skillGoal.value) || 30,
+          due_date: el.skillDue?.value || null,
+          is_completed: false,
           milestones: [],
         },
       ]);
@@ -620,11 +774,11 @@ window.FocusModule = (() => {
       }
 
       el.skillName.value = '';
+      if (el.skillDue) el.skillDue.value = '';
       window.appShowToast(`Aktivita „${name}“ přidána.`);
       await loadAll();
     });
 
-    // Sledování otevření/zavření sekce Milníky
     el.skillsList.addEventListener(
       'toggle',
       (e) => {
@@ -645,7 +799,82 @@ window.FocusModule = (() => {
       }
     });
 
-    el.skillsList.addEventListener('click', async (e) => {
+    const handleSkillAction = async (e) => {
+      // Rychlé odškrtnutí dnešního dne (checkbox)
+      if (e.target.classList.contains('skill-quick-check')) {
+        const skillId = e.target.dataset.quickSkill;
+        const checked = e.target.checked;
+        const today = todayStr();
+
+        if (checked) {
+          await saveSession(skillId, today, 1, QUICK_NOTE);
+        } else {
+          const { error } = await db
+            .from('focus_sessions')
+            .delete()
+            .eq('skill_id', skillId)
+            .eq('session_date', today)
+            .eq('notes', QUICK_NOTE);
+
+          if (error) {
+            window.appShowError(`Chyba odškrtnutí: ${error.message}`);
+            e.target.checked = true;
+            return;
+          }
+          await loadAll();
+          window.ProgressModule?.refresh();
+        }
+        return;
+      }
+
+      // Uzavřít aktivitu navždy (🎓 Hotovo)
+      const finishBtn = e.target.closest('[data-finish-skill]');
+      if (finishBtn) {
+        const skillId = finishBtn.dataset.finishSkill;
+        const skill = skills.find((s) => s.id === skillId);
+        const uniqueDays = new Set(
+          sessions.filter((s) => s.skill_id === skillId).map((s) => s.session_date)
+        ).size;
+        const bonusTxt =
+          uniqueDays >= 5
+            ? `Získáš jednorázový bonus +${Math.min(150, uniqueDays * 5)} XP za ${uniqueDays} odpracovaných dnů.`
+            : `Odpracováno zatím jen ${uniqueDays} dnů (bonus za dokončení se uděluje od 5 dnů).`;
+
+        if (!confirm(`Označit „${skill?.name}“ jako natrvalo dokončené / naučené?\n\n${bonusTxt}`)) {
+          return;
+        }
+
+        const { error } = await db
+          .from('focus_skills')
+          .update({ is_completed: true, completed_at: new Date().toISOString() })
+          .eq('id', skillId);
+
+        if (error) {
+          window.appShowError(`Chyba dokončení: ${error.message}`);
+          return;
+        }
+        window.appShowToast('Aktivita uzavřena jako naučená!');
+        await loadAll();
+        window.ProgressModule?.refresh();
+        return;
+      }
+
+      // Obnovit z archivu
+      const reopenBtn = e.target.closest('[data-reopen-skill]');
+      if (reopenBtn) {
+        const { error } = await db
+          .from('focus_skills')
+          .update({ is_completed: false, completed_at: null })
+          .eq('id', reopenBtn.dataset.reopenSkill);
+        if (error) {
+          window.appShowError(`Chyba obnovení: ${error.message}`);
+          return;
+        }
+        await loadAll();
+        window.ProgressModule?.refresh();
+        return;
+      }
+
       // Přidání milníku
       const msAddBtn = e.target.closest('[data-ms-add]');
       if (msAddBtn) {
@@ -704,7 +933,10 @@ window.FocusModule = (() => {
       if (hmCell) {
         openLogDialog(hmCell.dataset.hmSkill, hmCell.dataset.hmDate);
       }
-    });
+    };
+
+    el.skillsList.addEventListener('click', handleSkillAction);
+    if (el.completedList) el.completedList.addEventListener('click', handleSkillAction);
 
     el.logQuickMins.forEach((btn) => {
       btn.addEventListener('click', () => {
