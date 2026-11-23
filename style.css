@@ -2461,3 +2461,32 @@ select:focus {
     grid-column: 1 / -1;
   }
 }
+/* === MŘÍŽKY BEZ KOLONKY PRO EMOJI === */
+.focus-add-grid {
+  grid-template-columns: 1.8fr 50px 85px 140px auto;
+}
+
+.clean-add-grid {
+  grid-template-columns: 1.8fr 54px 140px auto;
+}
+
+@media (max-width: 820px) {
+  .focus-add-grid {
+    grid-template-columns: 1fr 50px 85px;
+  }
+  .focus-add-grid input[type="date"] {
+    grid-column: span 2;
+  }
+  .focus-add-grid .btn-primary {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .clean-add-grid {
+    grid-template-columns: 1fr 54px;
+  }
+  .clean-add-grid input[type="date"] {
+    grid-column: span 1;
+  }
+}

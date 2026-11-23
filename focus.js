@@ -39,12 +39,10 @@ window.FocusModule = (() => {
     el.nextYearBtn = document.getElementById('focus-next-year');
     el.summaryBar = document.getElementById('focus-summary-bar');
 
-    // Denní progress & combo (přesunuto z Denních rutin)
     el.progressText = document.getElementById('focus-progress-text');
     el.progressFill = document.getElementById('focus-progress-fill');
     el.comboBadge = document.getElementById('focus-combo-badge');
 
-    // Časovač
     el.timerSkill = document.getElementById('timer-skill-select');
     el.timerModeBtns = document.querySelectorAll('.timer-mode-chip');
     el.timerPresetRow = document.getElementById('timer-preset-row');
@@ -54,21 +52,17 @@ window.FocusModule = (() => {
     el.timerStopSaveBtn = document.getElementById('timer-stop-save-btn');
     el.timerResetBtn = document.getElementById('timer-reset-btn');
 
-    // Přidání aktivity (včetně deadlinu)
     el.addSkillForm = document.getElementById('focus-add-skill-form');
     el.skillName = document.getElementById('focus-skill-name');
-    el.skillIcon = document.getElementById('focus-skill-icon');
     el.skillColor = document.getElementById('focus-skill-color');
     el.skillGoal = document.getElementById('focus-skill-goal');
     el.skillDue = document.getElementById('focus-skill-due');
 
-    // Seznam & archiv
     el.skillsList = document.getElementById('focus-skills-list');
     el.completedWrap = document.getElementById('focus-completed-wrap');
     el.completedList = document.getElementById('focus-completed-list');
     el.completedCount = document.getElementById('focus-completed-count');
 
-    // Dialog ručního zápisu času
     el.logDialog = document.getElementById('focus-log-dialog');
     el.logForm = document.getElementById('focus-log-form');
     el.logTitle = document.getElementById('focus-log-title');
@@ -212,7 +206,7 @@ window.FocusModule = (() => {
     el.timerSkill.innerHTML = activeSkills
       .map(
         (s) =>
-          `<option value="${s.id}" ${s.id === timerState.skillId ? 'selected' : ''}>${escapeHtml(s.icon)} ${escapeHtml(s.name)}</option>`
+          `<option value="${s.id}" ${s.id === timerState.skillId ? 'selected' : ''}>${escapeHtml(s.name)}</option>`
       )
       .join('');
   }
@@ -372,7 +366,6 @@ window.FocusModule = (() => {
 
     const today = todayStr();
 
-    // Seskupení dat podle skillu a data
     const metaBySkill = {};
     const totalRealMinBySkill = {};
     const yearRealMinBySkill = {};
@@ -406,7 +399,6 @@ window.FocusModule = (() => {
     const activeSkills = skills.filter((s) => !s.is_completed);
     const completedSkills = skills.filter((s) => s.is_completed);
 
-    // Denní progress a Combo badge (přesunuto z Denních rutin)
     const doneTodayCount = activeSkills.filter((s) => Boolean(metaBySkill[s.id]?.[today])).length;
     const totalActive = activeSkills.length;
     const todayPct = totalActive ? Math.round((doneTodayCount / totalActive) * 100) : 0;
@@ -416,7 +408,7 @@ window.FocusModule = (() => {
     if (el.comboBadge) {
       const hasCombo = totalActive >= 3 && doneTodayCount === totalActive;
       el.comboBadge.textContent = hasCombo
-        ? '⚡ COMBO +15 XP AKTIVNÍ'
+        ? 'COMBO +15 XP AKTIVNÍ'
         : '100 % (min. 3) = +15 XP Combo';
       el.comboBadge.classList.toggle('combo-active', hasCombo);
     }
@@ -438,7 +430,6 @@ window.FocusModule = (() => {
       el.skillsList.innerHTML =
         '<p class="empty-state">Zatím nemáš přidanou žádnou aktivitu. Přidej si třeba Lean 4, Trénink šachů, Kreatin nebo 10k kroků.</p>';
     } else {
-      // Řazení: nesplněné dnes podle urgence deadlinu nahoře, splněné dnes níž
       const sortedActive = [...activeSkills].sort((a, b) => {
         const aDone = metaBySkill[a.id]?.[today] ? 1 : 0;
         const bDone = metaBySkill[b.id]?.[today] ? 1 : 0;
@@ -474,7 +465,6 @@ window.FocusModule = (() => {
               <div class="skill-card-head">
                 <div class="skill-title-wrap">
                   <input type="checkbox" class="todo-checkbox skill-quick-check" data-quick-skill="${skill.id}" ${isDoneToday ? 'checked' : ''} title="Rychle odškrtnout dnešní den (+10 XP)">
-                  <span class="skill-icon">${escapeHtml(skill.icon)}</span>
                   <div>
                     <div class="skill-name-row">
                       <h3>${escapeHtml(skill.name)}</h3>
@@ -490,10 +480,10 @@ window.FocusModule = (() => {
 
                 <div class="skill-head-actions">
                   <button type="button" class="btn-today ${todayMeta?.realMin > 0 ? 'done' : ''}" data-log-today="${skill.id}">
-                    ${todayMeta?.realMin > 0 ? `⏱ ${formatDuration(todayMeta.realMin)}` : '+ Čas'}
+                    ${todayMeta?.realMin > 0 ? formatDuration(todayMeta.realMin) : '+ Čas'}
                   </button>
-                  <span class="skill-streak mono ${streak > 0 ? 'active' : ''}" title="Streak aktivity">🔥 ${streak}</span>
-                  <button type="button" class="btn-finish-habit" data-finish-skill="${skill.id}" title="Uzavřít natrvalo jako naučené / dokončené (bonus XP od 5 dnů)">🎓 Hotovo</button>
+                  <span class="skill-streak mono ${streak > 0 ? 'active' : ''}" title="Streak aktivity">${streak}d</span>
+                  <button type="button" class="btn-finish-habit" data-finish-skill="${skill.id}" title="Uzavřít natrvalo jako naučené / dokončené (bonus XP od 5 dnů)">Hotovo</button>
                   <button type="button" class="icon-btn delete" data-del-skill="${skill.id}" title="Smazat aktivitu">✕</button>
                 </div>
               </div>
@@ -506,7 +496,6 @@ window.FocusModule = (() => {
         .join('');
     }
 
-    // Archiv zvládnutých / naučených aktivit
     if (el.completedWrap && el.completedList && el.completedCount) {
       el.completedWrap.classList.toggle('hidden', completedSkills.length === 0);
       el.completedCount.textContent = String(completedSkills.length);
@@ -520,9 +509,8 @@ window.FocusModule = (() => {
           return `
             <div class="habit-item done">
               <div class="habit-main">
-                <span class="habit-icon">🎓</span>
                 <div class="habit-text-col">
-                  <span class="habit-name">${escapeHtml(skill.icon)} ${escapeHtml(skill.name)}</span>
+                  <span class="habit-name">${escapeHtml(skill.name)}</span>
                   <div class="habit-sub-badges">
                     <span class="badge badge-low">Zvládnuto ${doneDate}</span>
                     <span class="badge badge-date mono">${totalDays}d · ${formatDuration(totalMin)} (+${bonus} XP bonus)</span>
@@ -578,7 +566,6 @@ window.FocusModule = (() => {
     await updateSkillMilestones(skillId, next);
   }
 
-  // --- Živý časovač ---
   function getElapsedSeconds() {
     let sec = timerState.accumulatedSec || 0;
     if (timerState.running && timerState.startedAt) {
@@ -658,7 +645,7 @@ window.FocusModule = (() => {
     const skill = skills.find((s) => s.id === skillId);
     if (!skill) return;
     el.logSkillId.value = skill.id;
-    el.logTitle.textContent = `${skill.icon} ${skill.name} · Zapsat čas`;
+    el.logTitle.textContent = `${skill.name} · Zapsat čas`;
     el.logDate.value = dateStr || todayStr();
     el.logMinutes.value = skill.daily_goal_min || 30;
     el.logNotes.value = '';
@@ -759,7 +746,7 @@ window.FocusModule = (() => {
         {
           user_id: user.id,
           name,
-          icon: el.skillIcon.value.trim() || '⚡',
+          icon: '',
           color: el.skillColor.value || '#00f0ff',
           daily_goal_min: Number(el.skillGoal.value) || 30,
           due_date: el.skillDue?.value || null,
@@ -800,7 +787,6 @@ window.FocusModule = (() => {
     });
 
     const handleSkillAction = async (e) => {
-      // Rychlé odškrtnutí dnešního dne (checkbox)
       if (e.target.classList.contains('skill-quick-check')) {
         const skillId = e.target.dataset.quickSkill;
         const checked = e.target.checked;
@@ -827,7 +813,6 @@ window.FocusModule = (() => {
         return;
       }
 
-      // Uzavřít aktivitu navždy (🎓 Hotovo)
       const finishBtn = e.target.closest('[data-finish-skill]');
       if (finishBtn) {
         const skillId = finishBtn.dataset.finishSkill;
@@ -859,7 +844,6 @@ window.FocusModule = (() => {
         return;
       }
 
-      // Obnovit z archivu
       const reopenBtn = e.target.closest('[data-reopen-skill]');
       if (reopenBtn) {
         const { error } = await db
@@ -875,14 +859,12 @@ window.FocusModule = (() => {
         return;
       }
 
-      // Přidání milníku
       const msAddBtn = e.target.closest('[data-ms-add]');
       if (msAddBtn) {
         await addMilestoneFromInput(msAddBtn.dataset.msAdd);
         return;
       }
 
-      // Smazání milníku
       const msDelBtn = e.target.closest('.ms-del-btn');
       if (msDelBtn) {
         const sid = msDelBtn.dataset.msSkill;
@@ -894,7 +876,6 @@ window.FocusModule = (() => {
         return;
       }
 
-      // Odškrtnutí milníku
       if (e.target.classList.contains('ms-check')) {
         const sid = e.target.dataset.msSkill;
         const idx = Number(e.target.dataset.msIdx);
@@ -908,7 +889,6 @@ window.FocusModule = (() => {
         return;
       }
 
-      // Smazání celé aktivity
       const delBtn = e.target.closest('[data-del-skill]');
       if (delBtn) {
         if (!confirm('Smazat tuto aktivitu včetně celé její roční historie a milníků?')) return;
