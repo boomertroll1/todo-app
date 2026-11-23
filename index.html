@@ -29,6 +29,7 @@
   <script src="./achievements.js" defer></script>
   <script src="./progress.js" defer></script>
   <script src="./app.js" defer></script>
+  <script src="./drafts.js" defer></script>
 </head>
 <body>
   <div id="error-banner" class="error-banner hidden" role="alert"></div>
@@ -225,7 +226,7 @@
           <form id="focus-plan-form" class="focus-plan-grid">
             <input id="focus-plan-date" type="date" aria-label="Den plánu" required>
             <select id="focus-plan-skill" aria-label="Vyber aktivitu"></select>
-            <input id="focus-plan-minutes" type="number" min="5" max="600" value="60" placeholder="Minut" title="Plánovaný čas v minutách" required>
+            <input id="focus-plan-minutes" type="number" step="any" min="5" max="600" value="60" placeholder="Minut" title="Plánovaný čas v minutách" required>
             <button type="submit" class="btn btn-primary">+ Naplánovat</button>
           </form>
 
@@ -288,7 +289,7 @@
           <div class="focus-add-grid">
             <input id="focus-skill-name" type="text" maxlength="50" placeholder="Nová aktivita (např. Lean 4, Šachy, Matematika)..." required>
             <input id="focus-skill-color" type="color" value="#00f0ff" aria-label="Barva heatmapy" title="Barva heatmapy">
-            <input id="focus-skill-goal" type="number" min="5" max="600" value="60" placeholder="Cíl (min)" title="Denní cíl v minutách">
+            <input id="focus-skill-goal" type="number" step="any" min="5" max="600" value="60" placeholder="Cíl (min)" title="Denní cíl v minutách">
             <button type="submit" class="btn btn-primary">+ Přidat</button>
           </div>
         </form>
@@ -400,11 +401,11 @@
             </label>
             <label class="field">
               <span>Délka (min)</span>
-              <input id="tutor-duration" type="number" min="15" max="480" value="60" required>
+              <input id="tutor-duration" type="number" step="any" min="15" max="480" value="60" required>
             </label>
             <label class="field">
               <span>Cena (Kč, volitelné)</span>
-              <input id="tutor-price" type="number" min="0" max="50000" placeholder="300">
+              <input id="tutor-price" type="number" step="any" min="0" max="50000" placeholder="300">
             </label>
             <label class="field field-wide">
               <span>Poznámka / Téma lekce</span>
@@ -515,31 +516,31 @@
         <div class="form-grid">
           <label class="field">
             <span>Váha (kg)</span>
-            <input id="log-weight" type="number" step="0.1" min="30" max="250" placeholder="82.5">
+            <input id="log-weight" type="number" step="any" min="30" max="250" placeholder="75.75">
           </label>
           <label class="field">
             <span>Kalorie (kcal)</span>
-            <input id="log-kcal" type="number" step="1" min="0" max="15000" placeholder="2200">
+            <input id="log-kcal" type="number" step="any" min="0" max="15000" placeholder="2200">
           </label>
           <label class="field">
             <span>Bílkoviny (g)</span>
-            <input id="log-protein" type="number" step="1" min="0" max="500" placeholder="180">
+            <input id="log-protein" type="number" step="any" min="0" max="500" placeholder="180">
           </label>
           <label class="field">
             <span>Sacharidy (g)</span>
-            <input id="log-carbs" type="number" step="1" min="0" max="1500" placeholder="200">
+            <input id="log-carbs" type="number" step="any" min="0" max="1500" placeholder="200">
           </label>
           <label class="field">
             <span>Tuky (g)</span>
-            <input id="log-fat" type="number" step="1" min="0" max="400" placeholder="65">
+            <input id="log-fat" type="number" step="any" min="0" max="400" placeholder="65">
           </label>
           <label class="field">
             <span>Kroky</span>
-            <input id="log-steps" type="number" step="1" min="0" max="100000" placeholder="12000">
+            <input id="log-steps" type="number" step="any" min="0" max="100000" placeholder="12000">
           </label>
           <label class="field">
             <span>Spánek (h)</span>
-            <input id="log-sleep" type="number" step="0.1" min="0" max="24" placeholder="7.5">
+            <input id="log-sleep" type="number" step="any" min="0" max="24" placeholder="7.5">
           </label>
           <label class="field field-wide">
             <span>Poznámka</span>
@@ -548,7 +549,7 @@
         </div>
 
         <div class="form-footer">
-          <span id="log-edit-hint" class="muted">Nový záznam pro vybraný den</span>
+          <span id="log-edit-hint" class="muted">Rozpracované hodnoty se ukládají automaticky</span>
           <button type="submit" id="save-log-btn" class="btn btn-primary">Uložit den</button>
         </div>
       </form>
@@ -628,11 +629,11 @@
           </label>
           <label class="field">
             <span>Délka (min)</span>
-            <input id="wo-duration" type="number" min="5" max="300" placeholder="75">
+            <input id="wo-duration" type="number" step="any" min="5" max="300" placeholder="75">
           </label>
           <label class="field">
             <span>Náročnost (RPE 1–10)</span>
-            <input id="wo-rpe" type="number" step="0.5" min="1" max="10" placeholder="8.5">
+            <input id="wo-rpe" type="number" step="any" min="1" max="10" placeholder="8.5">
           </label>
         </div>
 
@@ -780,7 +781,7 @@
         <section class="card stack-sm">
           <h2>Pravidla XP & Anti-Abuse limity</h2>
           <p class="muted">
-            Systém je nastavený tak, aby nešlo farmit body spamováním úkolů nebo AFK čekáním. Hlavní váhu má každodenní konzistence, reálný čas fokusu, doučování a trénink.
+            Všechny moduly jsou propojené do jednoho férového systému se stropy proti farmení. Hlavní váhu má každodenní konzistence, reálný čas fokusu, doučování, disciplína a trénink.
           </p>
 
           <div class="xp-rules-grid">
@@ -789,7 +790,7 @@
                 <span>Každodenní připomínky</span>
                 <span class="badge badge-gym mono">Cap 25 XP / den</span>
               </div>
-              <p class="muted"><strong>5 XP</strong> za každé odškrtnutí opakované připomínky (Kreatin, Vitamíny apod.). O půlnoci se položky samy resetují pro další den.</p>
+              <p class="muted"><strong>5 XP</strong> za každé odškrtnutí opakované připomínky (Kreatin, Vitamíny apod.). O půlnoci se samy resetují pro další den.</p>
             </div>
 
             <div class="xp-rule-card">
@@ -797,23 +798,23 @@
                 <span>Jednorázové úkoly</span>
                 <span class="badge badge-gym mono">Cap 50 XP / den</span>
               </div>
-              <p class="muted"><strong>10 XP</strong> za každý splněný úkol a <strong>+2 XP</strong> za podúkol.</p>
+              <p class="muted"><strong>10 XP</strong> za každý splněný úkol a <strong>+2 XP</strong> za každý odškrtnutý podúkol.</p>
             </div>
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>Fokus & Dlouhodobé aktivity</span>
+                <span>Dlouhodobé aktivity & Rutiny</span>
                 <span class="badge badge-gym mono">Cap 50 + 15 XP / den</span>
               </div>
-              <p class="muted"><strong>10 XP</strong> za denní odškrtnutí aktivity. Při splnění <strong>100 % dne</strong> (min. 3 aktivní aktivity) získáš <strong>+15 XP combo</strong>. Uzavření cíle (Hotovo) dá <strong>5 XP × odpracované dny</strong> (min. 5 dnů, max 150 XP).</p>
+              <p class="muted"><strong>10 XP</strong> za denní odškrtnutí aktivity. Při splnění <strong>100 % dne</strong> (min. 3 aktivní aktivity) získáš <strong>+15 XP Combo</strong>. Uzavření cíle (Hotovo) dá <strong>5 XP × odpracované dny</strong> (od 5 dnů, max 150 XP).</p>
             </div>
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>Čas fokusu, Plány & Milníky</span>
-                <span class="badge badge-gym mono">Cap 120 + 20 XP / den</span>
+                <span>Fokus (Deep Work), Plány & Milníky</span>
+                <span class="badge badge-gym mono">Cap 120 + 20 + 50 XP / den</span>
               </div>
-              <p class="muted">První 3 hodiny dávají <strong>0.5 XP / min</strong> (90 XP), nad 3 hodiny <strong>0.25 XP / min</strong>. Splněný denní fokus plán dá <strong>+10 XP</strong> (max 2 / den) a dokončený milník v roadmapě <strong>+25 XP</strong> (max 2 / den).</p>
+              <p class="muted">První 3 hodiny dávají <strong>0.5 XP / min</strong> (90 XP), nad 3 hodiny <strong>0.25 XP / min</strong> (max 120 XP/d). Splněný denní fokus plán dá <strong>+10 XP</strong> (max 2 / den) a dokončený milník v roadmapě <strong>+25 XP</strong> (max 2 / den).</p>
             </div>
 
             <div class="xp-rule-card">
@@ -829,7 +830,7 @@
                 <span>Dny bez… (Disciplína)</span>
                 <span class="badge badge-gym mono">10→100 XP/blok · Cap 200/d</span>
               </div>
-              <p class="muted">Začínáš na <strong>10 XP/den</strong> za každý blok a každý další čistý den roste sazba o <strong>+3 XP</strong> až do <strong>100 XP/den</strong> (31.+ den). Při selhání spadne sazba daného bloku zpět na <strong>10 XP</strong>.</p>
+              <p class="muted">Každý čistý blok začíná na <strong>10 XP/den</strong> a každý další čistý den v řadě roste o <strong>+3 XP</strong> až na <strong>100 XP/den</strong> (od 31. dne). Při selhání spadne sazba jen u toho jednoho bloku zpět na <strong>10 XP</strong>. Samostatně bez jiné aktivity neprodlužuje globální streak multiplikátor.</p>
             </div>
 
             <div class="xp-rule-card">
@@ -845,7 +846,7 @@
                 <span>Tělo & Strava</span>
                 <span class="badge badge-gym mono">Cap 55 XP / den</span>
               </div>
-              <p class="muted"><strong>15 XP</strong> denní zápis (s reálnými daty) + <strong>15 XP</strong> splněné bílkoviny + <strong>15 XP</strong> splněné kroky + <strong>10 XP</strong> spánek ≥ 7 hodin.</p>
+              <p class="muted"><strong>15 XP</strong> denní zápis (pouze s reálnými daty, ne prázdný Rest day) + <strong>15 XP</strong> splněné bílkoviny + <strong>15 XP</strong> splněné kroky + <strong>10 XP</strong> spánek ≥ 7 hodin.</p>
             </div>
 
             <div class="xp-rule-card">
@@ -866,7 +867,7 @@
                 <span>Multiplikátor konzistence</span>
                 <span class="badge badge-medium mono">1.00× až 1.20×</span>
               </div>
-              <p class="muted">Za každé <strong>3 dny aktivity v řadě</strong> (úkol, připomínka, fokus, doučování, gym nebo zápis) roste tvůj denní XP multiplikátor o <strong>+4 %</strong> až do maxima <strong>1.20×</strong> (15+ dnů). Když řadu přerušíš, multiplikátor se vrátí na 1.00× — o dřívější XP nikdy nepřijdeš.</p>
+              <p class="muted">Za každé <strong>3 aktivní dny v řadě</strong> (úkol, připomínka, fokus, doučování, gym nebo denní zápis) roste tvůj denní XP multiplikátor o <strong>+4 %</strong> až do maxima <strong>1.20×</strong> (15+ dnů). Když řadu přerušíš, multiplikátor se vrátí na 1.00× — o dřívější XP nikdy nepřijdeš.</p>
             </div>
 
             <div class="xp-rule-card">
@@ -930,7 +931,7 @@
         </label>
         <label class="field">
           <span>Minuty (cap 120 XP/den)</span>
-          <input id="focus-log-minutes" type="number" min="1" max="1440" required>
+          <input id="focus-log-minutes" type="number" step="any" min="1" max="1440" required>
         </label>
       </div>
       <div class="filter-group">
@@ -959,27 +960,27 @@
       <div class="edit-row">
         <label class="field">
           <span>Výška (cm)</span>
-          <input id="prof-height" type="number" step="0.5" min="100" max="240" placeholder="176">
+          <input id="prof-height" type="number" step="any" min="100" max="240" placeholder="176">
         </label>
         <label class="field">
           <span>Cílová váha (kg)</span>
-          <input id="prof-target-weight" type="number" step="0.1" min="40" max="200" placeholder="78.0">
+          <input id="prof-target-weight" type="number" step="any" min="40" max="200" placeholder="78.0">
         </label>
       </div>
       <div class="edit-row">
         <label class="field">
           <span>Cíl kalorií (kcal/den)</span>
-          <input id="prof-target-kcal" type="number" step="10" min="1000" max="8000" placeholder="2200">
+          <input id="prof-target-kcal" type="number" step="any" min="1000" max="8000" placeholder="2200">
         </label>
         <label class="field">
           <span>Cíl bílkovin (g/den)</span>
-          <input id="prof-target-protein" type="number" step="1" min="50" max="400" placeholder="180">
+          <input id="prof-target-protein" type="number" step="any" min="50" max="400" placeholder="180">
         </label>
       </div>
       <div class="edit-row">
         <label class="field">
           <span>Cíl kroků / den</span>
-          <input id="prof-target-steps" type="number" step="500" min="1000" max="50000" placeholder="12000">
+          <input id="prof-target-steps" type="number" step="any" min="1000" max="50000" placeholder="12000">
         </label>
         <label class="field">
           <span>Tréninků týdně</span>
