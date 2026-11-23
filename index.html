@@ -230,7 +230,7 @@
           </div>
         </section>
 
-        <!-- Dlouhodobé učení & Roční heatmapy (BEZ pole pro datum) -->
+        <!-- Dlouhodobé učení & Roční heatmapy -->
         <form id="focus-add-skill-form" class="card stack-sm">
           <div class="card-header-row">
             <div>
@@ -671,7 +671,7 @@
         <section class="card stack-sm">
           <h2>Pravidla XP & Anti-Abuse limity</h2>
           <p class="muted">
-            Systém je nastavený tak, aby nešlo farmit body spamováním úkolů. Hlavní váhu má každodenní konzistence, reálný čas fokusu a trénink.
+            Systém je nastavený tak, aby nešlo farmit body spamováním úkolů nebo AFK čekáním. Hlavní váhu má každodenní konzistence, reálný čas fokusu, doučování a trénink.
           </p>
 
           <div class="xp-rules-grid">
@@ -693,10 +693,26 @@
 
             <div class="xp-rule-card">
               <div class="xp-rule-head">
-                <span>Čas fokusu (Deep Work)</span>
-                <span class="badge badge-gym mono">Cap 120 XP / den</span>
+                <span>Čas fokusu, Plány & Milníky</span>
+                <span class="badge badge-gym mono">Cap 120 + 20 XP / den</span>
               </div>
-              <p class="muted">První 3 hodiny dávají <strong>0.5 XP / min</strong> (90 XP). Nad 3 hodiny klesá výnos na <strong>0.25 XP / min</strong>. Dokončený milník v roadmapě dá <strong>+25 XP</strong> (max 2 / den).</p>
+              <p class="muted">První 3 hodiny dávají <strong>0.5 XP / min</strong> (90 XP), nad 3 hodiny <strong>0.25 XP / min</strong>. Splněný denní fokus plán dá <strong>+10 XP</strong> (max 2 / den) a dokončený milník v roadmapě <strong>+25 XP</strong> (max 2 / den).</p>
+            </div>
+
+            <div class="xp-rule-card">
+              <div class="xp-rule-head">
+                <span>Doučování</span>
+                <span class="badge badge-gym mono">Cap 90 XP / den</span>
+              </div>
+              <p class="muted"><strong>0.5 XP / min</strong> (60 min = 30 XP). Přičítá se až po odškrtnutí lekce jako <strong>odučené</strong> a nejvýše do dnešního data (max 3 hodiny / den).</p>
+            </div>
+
+            <div class="xp-rule-card">
+              <div class="xp-rule-head">
+                <span>Dny bez… (Disciplína)</span>
+                <span class="badge badge-gym mono">Cap 10 XP / den</span>
+              </div>
+              <p class="muted"><strong>+10 XP plošně</strong> za den bez jediného selhání (bez ohledu na počet sledovaných trackerů). Přičte se <strong>jen v aktivní den</strong>, aby nešlo farmit body bez práce.</p>
             </div>
 
             <div class="xp-rule-card">
@@ -733,7 +749,7 @@
                 <span>Multiplikátor konzistence</span>
                 <span class="badge badge-medium mono">1.00× až 1.20×</span>
               </div>
-              <p class="muted">Za každé <strong>3 dny aktivity v řadě</strong> (úkol, rutina, fokus, gym nebo zápis) roste tvůj denní XP multiplikátor o <strong>+4 %</strong> až do maxima <strong>1.20×</strong> (15+ dnů). Když řadu přerušíš, multiplikátor se vrátí na 1.00× — o dřívější XP nikdy nepřijdeš.</p>
+              <p class="muted">Za každé <strong>3 dny aktivity v řadě</strong> (úkol, rutina, fokus, doučování, gym nebo zápis) roste tvůj denní XP multiplikátor o <strong>+4 %</strong> až do maxima <strong>1.20×</strong> (15+ dnů). Když řadu přerušíš, multiplikátor se vrátí na 1.00× — o dřívější XP nikdy nepřijdeš.</p>
             </div>
 
             <div class="xp-rule-card">
