@@ -14,6 +14,7 @@ window.CalendarModule = (() => {
     focusSessions: [],
     focusPlans: [],
     tutoring: [],
+    schedule: [],
   };
 
   const MONTH_NAMES = [
@@ -51,6 +52,30 @@ window.CalendarModule = (() => {
     return toDateStr(new Date());
   }
 
+  function getDayOfWeekFromDate(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const jsDay = new Date(y, m - 1, d).getDay();
+    return jsDay === 0 ? 7 : jsDay;
+  }
+
+  function toMinutes(timeStr) {
+    if (!timeStr || !timeStr.includes(':')) return null;
+    const [h, m] = timeStr.split(':').map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    return h * 60 + m;
+  }
+
+  function minutesToTime(totalMin) {
+    const h = Math.floor(totalMin / 60) % 24;
+    const m = totalMin % 60;
+    return `${pad(h)}:${pad(m)}`;
+  }
+
+  function intervalsOverlap(s1, e1, s2, e2) {
+    if (s1 == null || e1 == null || s2 == null || e2 == null) return false;
+    return s1 < e2 && s2 < e1;
+  }
+
   function formatDuration(min) {
     const m = Math.round(min || 0);
     if (m < 60) return `${m}m`;
@@ -59,10 +84,43 @@ window.CalendarModule = (() => {
     return rem ? `${h}h ${rem}m` : `${h}h`;
   }
 
+  function detectDayConflicts(dayClasses, dayTutoring) {
+    const conflictIds = new Set();
+    const events = [];
+
+    dayClasses.forEach((c) => {
+      const s = toMinutes(c.start_time);
+      const e = toMinutes(c.end_time);
+      if (s != null && e != null) {
+        events.push({ key: `sched:${c.id}`, s, e });
+      }
+    });
+
+    dayTutoring.forEach((t) => {
+      if (!t.start_time) return;
+      const s = toMinutes(t.start_time);
+      const e = s != null ? s + (Number(t.duration_min) || 60) : null;
+      if (s != null && e != null) {
+        events.push({ key: `tutor:${t.id}`, s, e });
+      }
+    });
+
+    for (let i = 0; i < events.length; i++) {
+      for (let j = i + 1; j < events.length; j++) {
+        if (intervalsOverlap(events[i].s, events[i].e, events[j].s, events[j].e)) {
+          conflictIds.add(events[i].key);
+          conflictIds.add(events[j].key);
+        }
+      }
+    }
+
+    return conflictIds;
+  }
+
   async function loadAll() {
     if (!db || !user) return;
 
-    const [todosRes, logsRes, woRes, photosRes, skillsRes, sessRes, plansRes, tutorRes] =
+    const [todosRes, logsRes, woRes, photosRes, skillsRes, sessRes, plansRes, tutorRes, schedRes] =
       await Promise.all([
         db.from('todos').select('id, title, is_completed, due_date'),
         db.from('daily_logs').select('log_date, day_type, weight_kg, kcal, protein_g, steps, sleep_hours').limit(500),
@@ -72,6 +130,7 @@ window.CalendarModule = (() => {
         db.from('focus_sessions').select('skill_id, session_date, minutes, notes').limit(5000),
         db.from('focus_plans').select('id, skill_id, plan_date, target_minutes').limit(1000),
         db.from('tutoring_sessions').select('*').limit(1000),
+        db.from('school_schedule').select('*').order('start_time', { ascending: true }),
       ]);
 
     cache = {
@@ -83,6 +142,7 @@ window.CalendarModule = (() => {
       focusSessions: sessRes.data || [],
       focusPlans: plansRes.data || [],
       tutoring: tutorRes.data || [],
+      schedule: schedRes.data || [],
     };
 
     render();
@@ -98,6 +158,12 @@ window.CalendarModule = (() => {
     if (el.monthLabel) {
       el.monthLabel.textContent = `${MONTH_NAMES[month]} ${year}`;
     }
+
+    const scheduleByDow = {};
+    cache.schedule.forEach((c) => {
+      if (!scheduleByDow[c.day_of_week]) scheduleByDow[c.day_of_week] = [];
+      scheduleByDow[c.day_of_week].push(c);
+    });
 
     const byDate = {};
     const ensure = (d) => {
@@ -150,7 +216,16 @@ window.CalendarModule = (() => {
     for (let day = 1; day <= daysInMonth; day++) {
       const dStr = `${year}-${pad(month + 1)}-${pad(day)}`;
       const info = byDate[dStr];
+      const dow = getDayOfWeekFromDate(dStr);
+      const dayClasses = scheduleByDow[dow] || [];
+      const dayTutoring = info ? info.tutoring : [];
+      const conflicts = detectDayConflicts(dayClasses, dayTutoring);
       const dots = [];
+
+      if (conflicts.size > 0) {
+        dots.push('<i class="cal-dot dot-conflict" title="Překrývání hodin / doučování!"></i>');
+      }
+      if (dayClasses.length) dots.push('<i class="cal-dot dot-sched" title="Školní rozvrh"></i>');
 
       if (info) {
         if (info.todos.length) dots.push('<i class="cal-dot dot-todo" title="Úkoly"></i>');
@@ -168,9 +243,10 @@ window.CalendarModule = (() => {
 
       const isToday = dStr === today;
       const isSelected = dStr === selectedDate;
+      const hasConflictCls = conflicts.size > 0 ? 'cal-has-conflict' : '';
 
       cells.push(`
-        <button type="button" class="cal-cell ${isToday ? 'cal-today' : ''} ${isSelected ? 'cal-selected' : ''}" data-cal-date="${dStr}">
+        <button type="button" class="cal-cell ${isToday ? 'cal-today' : ''} ${isSelected ? 'cal-selected' : ''} ${hasConflictCls}" data-cal-date="${dStr}">
           <span class="cal-day-num mono">${day}</span>
           <span class="cal-dots">${dots.join('')}</span>
         </button>
@@ -178,15 +254,20 @@ window.CalendarModule = (() => {
     }
 
     el.grid.innerHTML = cells.join('');
-    renderDetail(selectedDate || today, byDate[selectedDate || today]);
+    const targetDate = selectedDate || today;
+    const targetDow = getDayOfWeekFromDate(targetDate);
+    renderDetail(targetDate, byDate[targetDate], scheduleByDow[targetDow] || []);
   }
 
-  function renderDetail(dateStr, info) {
+  function renderDetail(dateStr, info, dayClasses) {
     if (!el.detailTitle || !el.detailBody) return;
     const [y, m, d] = dateStr.split('-').map(Number);
     el.detailTitle.textContent = `Detail dne · ${d}. ${m}. ${y}`;
 
-    if (!info) {
+    const dayTutoring = info?.tutoring || [];
+    const conflicts = detectDayConflicts(dayClasses, dayTutoring);
+
+    if (!info && !dayClasses.length) {
       el.detailBody.innerHTML = '<p class="muted">Pro tento den zatím nejsou žádné záznamy ani plány.</p>';
       return;
     }
@@ -194,20 +275,44 @@ window.CalendarModule = (() => {
     const skillMap = new Map(cache.focusSkills.map((s) => [s.id, s]));
     const blocks = [];
 
-    // 1. Doučování
-    if (info.tutoring.length) {
-      const items = info.tutoring
+    if (conflicts.size > 0) {
+      blocks.push(
+        `<div class="conflict-banner"><div class="conflict-banner-title">Pozor — v tento den se ti překrývají časové bloky (označeno červeně).</div></div>`
+      );
+    }
+
+    // 1. Školní rozvrh
+    if (dayClasses.length) {
+      const sorted = [...dayClasses].sort((a, b) => a.start_time.localeCompare(b.start_time));
+      const items = sorted
+        .map((c) => {
+          const isConf = conflicts.has(`sched:${c.id}`);
+          const room = c.room ? ` · ${escapeHtml(c.room)}` : '';
+          return `<li class="${isConf ? 'cal-conflict-item' : ''}"><span class="mono"><strong>${escapeHtml(c.start_time)}–${escapeHtml(c.end_time)}</strong></span> ${escapeHtml(c.subject)} <span class="muted">(${escapeHtml(c.lesson_type)}${room})</span> ${isConf ? '<span class="badge badge-overdue">KOLIZE</span>' : ''}</li>`;
+        })
+        .join('');
+      blocks.push(`<div class="cal-detail-block"><h4>Rozvrh (škola)</h4><ul>${items}</ul></div>`);
+    }
+
+    // 2. Doučování
+    if (dayTutoring.length) {
+      const items = dayTutoring
         .map((t) => {
-          const time = t.start_time ? `${escapeHtml(t.start_time)} · ` : '';
+          const isConf = conflicts.has(`tutor:${t.id}`);
+          const stMin = toMinutes(t.start_time);
+          const timeRange =
+            stMin != null
+              ? `${escapeHtml(t.start_time)}–${minutesToTime(stMin + (Number(t.duration_min) || 60))} · `
+              : '';
           const price = t.price_czk ? ` · ${t.price_czk} Kč` : '';
-          return `<li>${t.is_completed ? '✅' : '🎓'} <strong>${escapeHtml(t.student_name)}</strong> — ${escapeHtml(t.subject)} <span class="mono muted">(${time}${formatDuration(t.duration_min)}${price})</span>${t.notes ? ` · <span class="muted">${escapeHtml(t.notes)}</span>` : ''}</li>`;
+          return `<li class="${isConf ? 'cal-conflict-item' : ''}">${t.is_completed ? '✅' : '🎓'} <strong>${escapeHtml(t.student_name)}</strong> — ${escapeHtml(t.subject)} <span class="mono muted">(${timeRange}${formatDuration(t.duration_min)}${price})</span>${t.notes ? ` · <span class="muted">${escapeHtml(t.notes)}</span>` : ''} ${isConf ? '<span class="badge badge-overdue">KOLIZE</span>' : ''}</li>`;
         })
         .join('');
       blocks.push(`<div class="cal-detail-block"><h4>Doučování</h4><ul>${items}</ul></div>`);
     }
 
-    // 2. Fokus plán & odpracovaný čas
-    if (info.focusPlans.length || info.focusSessions.length) {
+    // 3. Fokus plán & odpracovaný čas
+    if (info && (info.focusPlans.length || info.focusSessions.length)) {
       const loggedBySkill = {};
       info.focusSessions.forEach((s) => {
         if (!loggedBySkill[s.skill_id]) loggedBySkill[s.skill_id] = { min: 0, quick: false };
@@ -238,24 +343,24 @@ window.CalendarModule = (() => {
       blocks.push(`<div class="cal-detail-block"><h4>Fokus & Plán učení</h4><ul>${lines.join('')}</ul></div>`);
     }
 
-    // 3. Úkoly
-    if (info.todos.length) {
+    // 4. Úkoly
+    if (info && info.todos.length) {
       const items = info.todos
         .map((t) => `<li>${t.is_completed ? '✅' : '⬜'} ${escapeHtml(t.title)}</li>`)
         .join('');
       blocks.push(`<div class="cal-detail-block"><h4>Úkoly</h4><ul>${items}</ul></div>`);
     }
 
-    // 4. Tréninky
-    if (info.workouts.length) {
+    // 5. Tréninky
+    if (info && info.workouts.length) {
       const items = info.workouts
         .map((w) => `<li>🏋️ <strong>${escapeHtml(w.name)}</strong>${w.duration_min ? ` <span class="mono muted">(${w.duration_min} min)</span>` : ''}</li>`)
         .join('');
       blocks.push(`<div class="cal-detail-block"><h4>Tréninky</h4><ul>${items}</ul></div>`);
     }
 
-    // 5. Denní log (váha, kalorie, kroky)
-    if (info.log) {
+    // 6. Denní log
+    if (info && info.log) {
       const l = info.log;
       const parts = [];
       if (l.weight_kg != null) parts.push(`Váha: <strong>${l.weight_kg} kg</strong>`);
@@ -268,8 +373,8 @@ window.CalendarModule = (() => {
       );
     }
 
-    // 6. Fotky
-    if (info.photos.length) {
+    // 7. Fotky
+    if (info && info.photos.length) {
       const imgs = info.photos
         .map(
           (p) =>
@@ -343,6 +448,7 @@ window.CalendarModule = (() => {
         focusSessions: [],
         focusPlans: [],
         tutoring: [],
+        schedule: [],
       };
     },
   };
