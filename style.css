@@ -2662,3 +2662,46 @@ select:focus {
     grid-column: 1 / -1;
   }
 }
+/* === OPRAVA BÍLÉHO INPUT[TYPE="TIME"] & OHRANIČENÍ AKTUÁLNÍHO DNE === */
+input[type="time"] {
+  width: 100%;
+  background: rgba(7, 9, 15, 0.85);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: 0.92rem;
+  color-scheme: dark;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+input[type="time"]:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.15);
+}
+
+/* Výrazné ohraničení dnešního dne v Kalendáři */
+.cal-cell.cal-today {
+  border: 2px solid var(--cyan) !important;
+  background: rgba(0, 240, 255, 0.12) !important;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.28);
+}
+
+.cal-cell.cal-today .cal-day-num {
+  color: var(--cyan);
+  font-weight: 700;
+}
+
+.cal-cell.cal-selected {
+  border-color: #a855f7 !important;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35);
+}
+
+/* Výrazné ohraničení dnešního dne v roční heatmapě */
+.hm-cell.hm-today {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+  z-index: 2;
+}
