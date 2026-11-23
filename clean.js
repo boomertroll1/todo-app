@@ -184,7 +184,7 @@ window.CleanModule = (() => {
 
     if (!trackers.length) {
       el.list.innerHTML =
-        '<p class="empty-state">Zatím nic nesleduješ. Přidej si třeba „Bez reels“, „Bez porna“ nebo „Bez cukru“ — každý den se sám barví jako čistý a klikáš jen při selhání.</p>';
+        '<p class="empty-state">Zatím nic nesleduješ. Přidej si třeba „Bez reels“, „Bez porna“ nebo „Bez cukru“ — každý aktivní čistý den dává +10 XP.</p>';
       return;
     }
 
@@ -251,6 +251,7 @@ window.CleanModule = (() => {
       }
       window.appShowToast(`Den ${dateStr} je opět čistý.`);
       await loadAll();
+      window.ProgressModule?.refresh();
     } else {
       if (askConfirm && !confirm(`Označit den ${dateStr} jako selhání? (Streak se přepočítá)`)) {
         return;
@@ -266,6 +267,7 @@ window.CleanModule = (() => {
       }
       window.appShowToast(`Zapsáno selhání (${dateStr}). Zítra jedeme znova.`);
       await loadAll();
+      window.ProgressModule?.refresh();
     }
   }
 
@@ -318,6 +320,7 @@ window.CleanModule = (() => {
           if (el.nameInput) el.nameInput.value = '';
           window.appShowToast(`Tracker „${name}“ přidán.`);
           await loadAll();
+          window.ProgressModule?.refresh();
         } catch (err) {
           window.appShowError(`Chyba: ${err.message}`);
         } finally {
@@ -338,6 +341,7 @@ window.CleanModule = (() => {
           }
           window.appShowToast('Tracker smazán.');
           await loadAll();
+          window.ProgressModule?.refresh();
           return;
         }
 

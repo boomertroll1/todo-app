@@ -96,7 +96,7 @@ window.TutoringModule = (() => {
       el.kpiGrid.innerHTML = [
         `<div class="kpi-card kpi-glow"><span class="kpi-label">Nadcházející</span><span class="kpi-value kpi-accent mono">${upcomingCount}</span><span class="kpi-sub">naplánovaných lekcí</span></div>`,
         `<div class="kpi-card"><span class="kpi-label">Tento měsíc</span><span class="kpi-value mono">${formatDuration(monthMin)}</span><span class="kpi-sub">odpracováno ${formatDuration(monthDoneMin)} (${monthLessons.length} lekcí)</span></div>`,
-        `<div class="kpi-card"><span class="kpi-label">Celkem odučeno</span><span class="kpi-value mono">${formatDuration(totalMin)}</span><span class="kpi-sub">${totalMin} min · ${lessons.length} lekcí</span></div>`,
+        `<div class="kpi-card"><span class="kpi-label">Celkem odučeno</span><span class="kpi-value mono">${formatDuration(totalMin)}</span><span class="kpi-sub">${totalMin} min · 0.5 XP/min (cap 90/d)</span></div>`,
         monthEarned > 0
           ? `<div class="kpi-card"><span class="kpi-label">Výdělek (měsíc)</span><span class="kpi-value mono">${monthEarned.toLocaleString('cs-CZ')} Kč</span><span class="kpi-sub">ze splněných lekcí</span></div>`
           : '',
@@ -130,7 +130,7 @@ window.TutoringModule = (() => {
 
         return `
           <div class="tutor-item ${l.is_completed ? 'done' : ''} ${urgCls}" data-tutor-id="${l.id}">
-            <input type="checkbox" class="todo-checkbox tutor-check" ${l.is_completed ? 'checked' : ''} title="Označit lekci jako odučenou">
+            <input type="checkbox" class="todo-checkbox tutor-check" ${l.is_completed ? 'checked' : ''} title="Označit lekci jako odučenou (+0.5 XP/min)">
             <div class="tutor-content">
               <div class="tutor-title-row">
                 <span class="tutor-student">${escapeHtml(l.student_name)}</span>
@@ -187,6 +187,7 @@ window.TutoringModule = (() => {
         window.appShowToast(`Doučování (${student} · ${subject}) uloženo.`);
         await loadAll();
         window.CalendarModule?.refresh();
+        window.ProgressModule?.refresh();
       });
     }
 
@@ -210,6 +211,7 @@ window.TutoringModule = (() => {
           }
           await loadAll();
           window.CalendarModule?.refresh();
+          window.ProgressModule?.refresh();
           return;
         }
 
@@ -229,6 +231,7 @@ window.TutoringModule = (() => {
           }
           await loadAll();
           window.CalendarModule?.refresh();
+          window.ProgressModule?.refresh();
         }
       });
     }
