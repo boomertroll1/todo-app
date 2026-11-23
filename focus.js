@@ -19,7 +19,19 @@ window.FocusModule = (() => {
   function loadTimerState() {
     try {
       const raw = localStorage.getItem('focusTimerState');
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          running: false,
+          skillId: '',
+          mode: 'stopwatch',
+          targetMin: 45,
+          startedAt: null,
+          accumulatedSec: 0,
+          sessionDate: null,
+          ...parsed,
+        };
+      }
     } catch (_) {}
     return {
       running: false,
@@ -28,6 +40,7 @@ window.FocusModule = (() => {
       targetMin: 45,
       startedAt: null,
       accumulatedSec: 0,
+      sessionDate: null,
     };
   }
 
@@ -694,7 +707,8 @@ window.FocusModule = (() => {
     }
 
     if (notes !== QUICK_NOTE) {
-      window.appShowToast(`Zapsáno ${formatDuration(minutes)} fokusu.`);
+      const dateNote = dateStr !== todayStr() ? ` (${dateStr})` : '';
+      window.appShowToast(`Zapsáno ${formatDuration(minutes)} fokusu${dateNote}.`);
     }
     await loadAll();
     window.ProgressModule?.refresh();
@@ -810,6 +824,7 @@ window.FocusModule = (() => {
         if (timerState.running) return;
         timerState.targetMin = Number(btn.dataset.timerMin);
         timerState.accumulatedSec = 0;
+        timerState.sessionDate = null;
         saveTimerState();
         updateTimerUI();
       });
@@ -828,6 +843,10 @@ window.FocusModule = (() => {
         timerState.startedAt = null;
         stopTimerTick();
       } else {
+        // Zapamatuje si datum startu relace, aby se po půlnoci uložila do dne začátku
+        if (!timerState.sessionDate) {
+          timerState.sessionDate = todayStr();
+        }
         timerState.running = true;
         timerState.startedAt = Date.now();
         startTimerTick();
@@ -840,6 +859,7 @@ window.FocusModule = (() => {
       timerState.running = false;
       timerState.startedAt = null;
       timerState.accumulatedSec = 0;
+      timerState.sessionDate = null;
       stopTimerTick();
       saveTimerState();
       updateTimerUI();
@@ -851,11 +871,16 @@ window.FocusModule = (() => {
       const skillId = el.timerSkill.value || timerState.skillId;
       if (!skillId) return;
 
-      const ok = await saveSession(skillId, todayStr(), mins, 'Časovač');
+      const sessionDate =
+        timerState.sessionDate ||
+        (timerState.startedAt ? toDateStr(new Date(timerState.startedAt)) : todayStr());
+
+      const ok = await saveSession(skillId, sessionDate, mins, 'Časovač');
       if (ok) {
         timerState.running = false;
         timerState.startedAt = null;
         timerState.accumulatedSec = 0;
+        timerState.sessionDate = null;
         stopTimerTick();
         saveTimerState();
         updateTimerUI();
