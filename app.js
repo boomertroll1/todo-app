@@ -284,6 +284,7 @@ function switchModule(moduleName) {
 
   if (moduleName === 'todos') switchTodosSubtab(state.activeTodosTab);
   if (moduleName === 'calendar') window.CalendarModule?.onShow();
+  if (moduleName === 'gym') window.BodyAnalyticsModule?.onShow();
   if (moduleName === 'workouts') {
     window.WorkoutsModule?.onShow();
     window.RestDayModule?.refresh();
@@ -648,6 +649,7 @@ el.refreshBtn.addEventListener('click', () => {
   window.TutoringModule?.refresh();
   window.CalendarModule?.refresh();
   window.GymModule?.refresh();
+  window.BodyAnalyticsModule?.refresh();
   window.WorkoutsModule?.refresh();
   window.RestDayModule?.refresh();
   window.ProgressModule?.refresh();
@@ -864,6 +866,7 @@ document.addEventListener('visibilitychange', () => {
     window.TutoringModule?.refresh();
     window.CalendarModule?.refresh();
     window.GymModule?.refresh();
+    window.BodyAnalyticsModule?.refresh();
     window.WorkoutsModule?.refresh();
     window.RestDayModule?.refresh();
     window.ProgressModule?.refresh();
@@ -882,6 +885,7 @@ function onSignedIn(user) {
   window.TutoringModule?.init(db, user);
   window.CalendarModule?.init(db, user);
   window.GymModule?.init(db, user);
+  window.BodyAnalyticsModule?.init(db, user);
   window.WorkoutsModule?.init(db, user);
   window.RestDayModule?.init(db, user);
   window.ProgressModule?.init(db, user);
@@ -900,6 +904,7 @@ db.auth.onAuthStateChange((_event, session) => {
     window.TutoringModule?.reset();
     window.CalendarModule?.reset();
     window.GymModule?.reset();
+    window.BodyAnalyticsModule?.reset();
     window.WorkoutsModule?.reset();
     window.RestDayModule?.reset();
     window.ProgressModule?.reset();

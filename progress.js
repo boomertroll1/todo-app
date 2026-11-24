@@ -54,9 +54,11 @@ window.ProgressModule = (() => {
   const el = {};
 
   function cacheElements() {
+    el.hudBar = document.querySelector('.hud-bar');
     el.hudEmblem = document.getElementById('hud-emblem');
     el.hudLevel = document.getElementById('hud-level');
     el.hudRank = document.getElementById('hud-rank');
+    el.hudNextRank = document.getElementById('hud-next-rank');
     el.hudXpText = document.getElementById('hud-xp-text');
     el.hudXpFill = document.getElementById('hud-xp-fill');
     el.hudStreak = document.getElementById('hud-streak');
@@ -192,6 +194,15 @@ window.ProgressModule = (() => {
     `;
   }
 
+  function buildAnimatedEmblemHTML(rank, size = 40) {
+    return `
+      <span class="hud-emblem-sheen">${buildRankEmblemSVG(rank, size)}</span>
+      <span class="rank-sparkle sp-1"></span>
+      <span class="rank-sparkle sp-2"></span>
+      <span class="rank-sparkle sp-3"></span>
+    `;
+  }
+
   function getLevelInfo(totalXp) {
     let level = 1;
     let remaining = totalXp;
@@ -206,12 +217,14 @@ window.ProgressModule = (() => {
     const rank = getInfiniteRank(level);
     const nextRankLevel = level + (2 - ((level - 1) % 2));
     const nextRank = getInfiniteRank(nextRankLevel);
+    const xpToNextRank = Math.max(0, totalXpForLevel(nextRankLevel) - totalXp);
 
     return {
       level,
       rank,
       nextRank,
       nextRankLevel,
+      xpToNextRank,
       currentXp: remaining,
       neededXp: needed,
       pct: Math.min(100, Math.round((remaining / needed) * 100)),
@@ -393,6 +406,7 @@ window.ProgressModule = (() => {
       const hasAnyMetric =
         l.weight_kg != null ||
         l.kcal != null ||
+        l.calories != null ||
         l.protein_g != null ||
         l.carbs_g != null ||
         l.fat_g != null ||
@@ -614,7 +628,6 @@ window.ProgressModule = (() => {
         const mult = 1 + Math.min(0.2, Math.floor(runningStreak / 3) * 0.04);
         finalDayXp = Math.round(baseSum * mult);
       } else {
-        // Samotné Dny bez... dají svoje XP (1.00×), ale nenafukují aktivní streak multiplikátor
         finalDayXp = dClean;
       }
 
@@ -829,11 +842,12 @@ window.ProgressModule = (() => {
     if (el.ranksPrevBtn) el.ranksPrevBtn.disabled = p <= 0;
 
     if (el.ranksHero) {
+      el.ranksHero.style.setProperty('--rank-color', levelInfo.rank.color);
       el.ranksHero.innerHTML = `
-        <div class="rank-showcase-emblem">${buildRankEmblemSVG(levelInfo.rank, 72)}</div>
+        <div class="rank-showcase-emblem">${buildAnimatedEmblemHTML(levelInfo.rank, 72)}</div>
         <div class="rank-showcase-info">
           <div class="rank-showcase-tag mono">TVŮJ AKTUÁLNÍ RANK · LEVEL ${levelInfo.level}</div>
-          <div class="rank-showcase-name" style="color: ${levelInfo.rank.color}">${levelInfo.rank.fullName}</div>
+          <div class="rank-showcase-name">${levelInfo.rank.fullName}</div>
           <div class="muted">
             Každý rank trvá 2 levely (10 tierů × 3 divize = 60 levelů na jeden Ascension cyklus). Po Levelu 60 se otevírá nekonečné Ascension P1, P2, P3... ∞
           </div>
@@ -858,8 +872,8 @@ window.ProgressModule = (() => {
         : `CHYBÍ ${Math.max(0, reqXp - levelInfo.totalXp).toLocaleString('cs-CZ')} XP`;
 
       cards.push(`
-        <div class="rank-tile ${statusCls}" style="--tier-color: ${rank.color}">
-          <div class="rank-tile-emblem">${buildRankEmblemSVG(rank, 54)}</div>
+        <div class="rank-tile ${statusCls}" style="--tier-color: ${rank.color}; --rank-color: ${rank.color}">
+          <div class="rank-tile-emblem">${isCurrent ? buildAnimatedEmblemHTML(rank, 54) : buildRankEmblemSVG(rank, 54)}</div>
           <div class="rank-tile-body">
             <div class="rank-tile-name" style="color: ${rank.color}">${rank.shortName}</div>
             <div class="rank-tile-lvl mono">LVL ${minLvl}–${maxLvl} · ${reqXp.toLocaleString('cs-CZ')} XP</div>
@@ -876,11 +890,15 @@ window.ProgressModule = (() => {
     const r = computeRPG();
     const { levelInfo } = r;
 
-    if (el.hudEmblem) el.hudEmblem.innerHTML = buildRankEmblemSVG(levelInfo.rank, 38);
+    if (el.hudBar) el.hudBar.style.setProperty('--rank-color', levelInfo.rank.color);
+    if (el.hudEmblem) el.hudEmblem.innerHTML = buildAnimatedEmblemHTML(levelInfo.rank, 40);
     if (el.hudLevel) el.hudLevel.textContent = `LVL ${levelInfo.level}`;
     if (el.hudRank) {
       el.hudRank.textContent = levelInfo.rank.shortName;
-      el.hudRank.style.color = levelInfo.rank.color;
+      el.hudRank.style.setProperty('--rank-color', levelInfo.rank.color);
+    }
+    if (el.hudNextRank) {
+      el.hudNextRank.textContent = `→ ${levelInfo.nextRank.shortName} (za ${levelInfo.xpToNextRank.toLocaleString('cs-CZ')} XP)`;
     }
     if (el.hudXpText) el.hudXpText.textContent = `${levelInfo.currentXp} / ${levelInfo.neededXp} XP`;
     if (el.hudXpFill) el.hudXpFill.style.width = `${levelInfo.pct}%`;
@@ -892,12 +910,13 @@ window.ProgressModule = (() => {
     renderDailyReminder(r);
 
     if (el.rankShowcase) {
+      el.rankShowcase.style.setProperty('--rank-color', levelInfo.rank.color);
       el.rankShowcase.innerHTML = `
-        <div class="rank-showcase-emblem">${buildRankEmblemSVG(levelInfo.rank, 76)}</div>
+        <div class="rank-showcase-emblem">${buildAnimatedEmblemHTML(levelInfo.rank, 76)}</div>
         <div class="rank-showcase-info">
           <div class="rank-showcase-tag mono">ANTI-ABUSE XP · MULTIPLIKÁTOR ${r.currentMultiplier.toFixed(2)}×</div>
-          <div class="rank-showcase-name" style="color: ${levelInfo.rank.color}">${levelInfo.rank.fullName}</div>
-          <div class="muted">Další povýšení na <strong>${levelInfo.nextRank.fullName}</strong> od levelu ${levelInfo.nextRankLevel} · Celkem ${levelInfo.totalXp.toLocaleString('cs-CZ')} XP (+${r.bonusStreakXp.toLocaleString('cs-CZ')} XP streak bonus)</div>
+          <div class="rank-showcase-name">${levelInfo.rank.fullName}</div>
+          <div class="muted">Další povýšení na <strong>${levelInfo.nextRank.fullName}</strong> od levelu ${levelInfo.nextRankLevel} (chybí ${levelInfo.xpToNextRank.toLocaleString('cs-CZ')} XP) · Celkem ${levelInfo.totalXp.toLocaleString('cs-CZ')} XP (+${r.bonusStreakXp.toLocaleString('cs-CZ')} XP streak bonus)</div>
         </div>
       `;
     }
